@@ -16,6 +16,18 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-20 - Netlify site created and deployed
+
+- `netlify sites:create --name webpen-presenter` (team mondradev's team, project id
+  cbb3ede7-5042-4ca1-812a-2af9f28fb568, admin at
+  https://app.netlify.com/projects/webpen-presenter) and `netlify deploy --prod` from
+  `site/`. Live: https://webpen-presenter.netlify.app/ (bookmarklet page),
+  `/presenter.js` (byte-identical to `src/`, served with max-age 300 and open CORS),
+  `/privacy.html`. The folder is linked (`.netlify/`, ignored by git), so later deploys
+  are `python scripts/sync.py` then `netlify deploy --prod`.
+- The bookmarklet harness re-run with `HOSTED=1` against the live file: BBC passes
+  every check; Wikipedia and GitHub blocked by CSP as before.
+
 ### 2026-10-20 - Extension polish: icons, popup, keyboard shortcut, store listing
 
 - Icons 16/32/48/128 drawn by `scripts/icons.py` (Pillow): dark rounded tile, white
@@ -154,8 +166,7 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] Run the three deploy commands under the hosting entry above, then confirm the
-      bookmark loads from the new host on the iPad.
+- [ ] Confirm the bookmark loads from the new host on the iPad.
 - [ ] Decide the single source of truth for `presenter.js`: either the lessons site
       copies from here on each release, or this repo pulls from the lessons site.
 - [ ] Load `extension/` unpacked in a real Chrome profile once: confirm the icon, the
