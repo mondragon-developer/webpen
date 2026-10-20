@@ -10,8 +10,17 @@
    no other file). On another site add <script src="presenter.js"></script> and open the
    page with ?present=1, or call Presenter.show() from the page's own instructor check.
    The window.Session hook below is the only thing specific to these lessons and is
-   ignored when absent. Class names are prefixed "presenter-" and z-index starts at 5900;
-   adjust STYLES if the host page sits higher.
+   ignored when absent. The canvas and the bar live in a shadow root on one host element
+   appended to <html>, so the page's own CSS (global button rules, body transforms) cannot
+   reach them; Z_INDEX is the only knob a host page may need to lower.
+
+   Frames rule: when this file runs inside an iframe (a carrier such as the extension can
+   load it in every frame) it builds no UI. It captures the pen the same way and forwards
+   the points to the parent window with postMessage, which maps them through the iframe's
+   box and either draws them (top frame) or forwards again. The frame learns whether the
+   presenter is on through Presenter.frameState(), which the carrier feeds from the top
+   frame over its own channel, never from postMessage, so a page cannot switch the capture
+   on by itself. Laser taps inside a frame are replayed by the frame itself.
 
    Input rule: a pen (Apple Pencil, pointerType "pen") is captured in every mode, so it
    never scrolls or selects; fingers keep working the lesson underneath. In Mark and Pen
@@ -42,6 +51,8 @@
   if (window.Presenter) return;
 
   var STORE = "presenter";
+  var Z_INDEX = 2147483000; // the host element; the lessons copy keeps 5900 so its login gate stays on top
+  var FRAME_MSG = "webpen-presenter"; // postMessage tag for frame to parent pointer forwarding
   var LASER_LIFE = 1200; // ms a hover trail point stays visible; long enough to survive Zoom's low frame rate
   var LASER_HOLD = 2000; // ms the laser notes stay after the last lift before they fade
   var LIFT_FADE = 300; // ms the notes take to vanish once the hold is over
@@ -49,18 +60,20 @@
   var MAX_TRACE = 12000; // pressed trace points; coalesced pen events add several per frame
   var ERASE_RADIUS = 14; // px around the eraser point; a stroke's half width is added on top
 
-  /* Lessons style bare canvas elements for their charts (white background, border, width
-     100%), so every property that could paint over the page is pinned here. The canvas and
-     the dock get size and translate from the script; inset: 0 or 100vh would drift on iPad
-     Safari after a pinch zoom or window resize. The bar sits bottom-left because this
-     site's proctor chip owns the bottom-right corner. */
+  /* Everything sits in a shadow root, so page rules never match the canvas or the buttons;
+     :host{all:initial} also stops inherited properties (font, color, text-transform) from
+     leaking in. The canvas and the dock get size and translate from the script; inset: 0 or
+     100vh would drift on iPad Safari after a pinch zoom or window resize. The bar sits
+     bottom-left because the lessons' proctor chip owns the bottom-right corner. */
   var STYLES = [
-    "canvas.presenter-canvas{position:fixed;left:0;top:0;transform-origin:0 0;z-index:2147483000;",
+    ":host{all:initial;position:fixed;left:0;top:0;width:0;height:0;overflow:visible;display:block;",
+    "z-index:" + Z_INDEX + "}",
+    "canvas.presenter-canvas{position:fixed;left:0;top:0;transform-origin:0 0;z-index:0;",
     "pointer-events:none;display:none;margin:0;padding:0;border:0;border-radius:0;",
     "background:transparent;box-shadow:none;max-width:none;max-height:none}",
     "canvas.presenter-canvas-on{display:block}",
     "canvas.presenter-canvas-capture{pointer-events:auto;touch-action:none}",
-    ".presenter-dock{position:fixed;left:0;top:0;transform-origin:0 0;z-index:2147483001;pointer-events:none}",
+    ".presenter-dock{position:fixed;left:0;top:0;transform-origin:0 0;z-index:1;pointer-events:none}",
     ".presenter-chip,.presenter-bar{position:absolute;left:12px;bottom:12px;pointer-events:auto;",
     "font:13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
     ".presenter-chip{padding:6px 12px;border:0;border-radius:999px;background:#0f172a;color:#e2e8f0;",
@@ -97,9 +110,13 @@
   var dirty = true;
   var raf = 0;
   var lastHover = 0;
-  var canvas, ctx, dock, chip, bar;
+  var canvas, ctx, host, dock, chip, bar;
   var vp = { x: 0, y: 0, w: 1, h: 1, pageX: 0, pageY: 0, scale: 1 };
   var px = 1;
+  var inFrame = false;
+  try { inFrame = window.top !== window; } catch (e) { inFrame = true; }
+  var frameTag = Math.random().toString(36).slice(2, 8); // keeps pointer ids from different frames apart at the top
+  var changeListeners = [];
 
   try {
     var saved = JSON.parse(sessionStorage.getItem(STORE) || "null");
@@ -115,6 +132,13 @@
 
   function persist() {
     try { sessionStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+    for (var i = 0; i < changeListeners.length; i++) {
+      try { changeListeners[i](snapshot()); } catch (e) {}
+    }
+  }
+
+  function snapshot() {
+    return { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick };
   }
 
   function urlFlag() {
@@ -147,9 +171,11 @@
   var fingerButton, colorButton, colorSwatch, colorLabel, thickButton;
 
   function build() {
+    host = el("div", "presenter-host");
+    var root = host.attachShadow({ mode: "open" });
     var style = el("style");
     style.textContent = STYLES;
-    document.head.appendChild(style);
+    root.appendChild(style);
 
     canvas = el("canvas", "presenter-canvas");
     canvas.setAttribute("aria-hidden", "true");
@@ -190,8 +216,9 @@
     dock = el("div", "presenter-dock");
     dock.appendChild(chip);
     dock.appendChild(bar);
-    document.body.appendChild(canvas);
-    document.body.appendChild(dock);
+    root.appendChild(canvas);
+    root.appendChild(dock);
+    document.documentElement.appendChild(host);
 
     layout();
     window.addEventListener("resize", layout);
@@ -317,8 +344,13 @@
 
   /* ---- Input ---- */
 
+  /* Listeners sit on window, so an event from inside the shadow root arrives retargeted
+     to the host; composedPath still exposes the button that was really hit. */
   function isUi(e) {
-    return !!(e.target && e.target.closest && e.target.closest(".presenter-ui"));
+    if (!dock) return false;
+    var path = typeof e.composedPath === "function" ? e.composedPath() : null;
+    var t = path && path.length ? path[0] : e.target;
+    return !!(t && t !== canvas && t.nodeType === 1 && dock.contains(t));
   }
 
   function draws(e) {
@@ -333,10 +365,11 @@
   /* The pen never reaches the lesson, so a Laser-mode tap is replayed as a click on the
      element under it. The canvas has pointer-events: none here, so elementFromPoint skips
      it. Only click and focus are replayed: that works for buttons, links, checkboxes,
-     radios and text fields, not for sliders or selects, which keep needing a finger. */
+     radios and text fields, not for sliders or selects, which keep needing a finger. A tap
+     that lands on an iframe is left alone: the frame saw the same pen and replays it. */
   function tapThrough(x, y) {
     var el = document.elementFromPoint(x, y);
-    if (!el || (el.closest && el.closest(".presenter-ui"))) return;
+    if (!el || el === host || el.tagName === "IFRAME") return;
     if (typeof el.focus === "function") {
       try { el.focus({ preventScroll: true }); } catch (err) { el.focus(); }
     }
@@ -356,6 +389,7 @@
   }
 
   function pointsOf(e) {
+    if (e.points) return e.points;
     var list = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : null;
     return list && list.length ? list : [e];
   }
@@ -488,17 +522,116 @@
     }
   }
 
+  /* Window capture runs before any listener the page put on document, so a page that
+     handles pointerdown itself (drawing apps, maps) never sees the pen while the bar is on. */
   function bindInput() {
     var cap = { capture: true, passive: false };
-    document.addEventListener("pointerdown", onDown, cap);
-    document.addEventListener("pointermove", onMove, cap);
-    document.addEventListener("pointerup", onUp, cap);
-    document.addEventListener("pointercancel", onUp, cap);
-    document.addEventListener("touchstart", onTouch, cap);
-    document.addEventListener("touchmove", onTouch, cap);
-    document.addEventListener("selectstart", function (e) {
+    window.addEventListener("pointerdown", onDown, cap);
+    window.addEventListener("pointermove", onMove, cap);
+    window.addEventListener("pointerup", onUp, cap);
+    window.addEventListener("pointercancel", onUp, cap);
+    window.addEventListener("touchstart", onTouch, cap);
+    window.addEventListener("touchmove", onTouch, cap);
+    window.addEventListener("selectstart", function (e) {
       if (activePointer !== null) e.preventDefault();
     }, true);
+    window.addEventListener("message", onFrameMessage);
+  }
+
+  /* ---- Frames ---- */
+
+  /* Inside an iframe the pen is captured with the same rules, but nothing is drawn: every
+     event becomes a message to the parent with the frame's own client coordinates. */
+  var frameActive = null;
+  var frameTap = null;
+
+  function post(type, e, pts) {
+    var msg = { webpen: FRAME_MSG, type: type, tag: frameTag, pointerId: e.pointerId,
+                pointerType: e.pointerType, buttons: e.buttons, x: e.clientX, y: e.clientY };
+    if (pts) msg.points = pts.map(function (p) { return { x: p.clientX, y: p.clientY }; });
+    window.parent.postMessage(msg, "*");
+  }
+
+  function frameDown(e) {
+    if (!draws(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    frameActive = e.pointerId;
+    frameTap = state.mode === "laser" && !state.allInput ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+    post("pointerdown", e);
+  }
+
+  function frameMove(e) {
+    if (frameActive !== null && e.pointerId === frameActive) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (frameTap && Math.hypot(e.clientX - frameTap.x, e.clientY - frameTap.y) > TAP_MOVE) frameTap = null;
+      post("pointermove", e, pointsOf(e));
+      return;
+    }
+    if (hovers(e)) {
+      if (e.pointerType === "pen") e.preventDefault();
+      post("pointermove", e);
+    }
+  }
+
+  function frameUp(e) {
+    if (frameActive === null || e.pointerId !== frameActive) return;
+    if (draws(e)) { e.preventDefault(); e.stopPropagation(); }
+    frameActive = null;
+    post(e.type, e);
+    var t = frameTap;
+    frameTap = null;
+    if (t && e.type === "pointerup" && performance.now() - t.t < TAP_TIME) tapThrough(t.x, t.y);
+  }
+
+  function bindFrame() {
+    var cap = { capture: true, passive: false };
+    window.addEventListener("pointerdown", frameDown, cap);
+    window.addEventListener("pointermove", frameMove, cap);
+    window.addEventListener("pointerup", frameUp, cap);
+    window.addEventListener("pointercancel", frameUp, cap);
+    window.addEventListener("touchstart", onTouch, cap);
+    window.addEventListener("touchmove", onTouch, cap);
+    window.addEventListener("message", onFrameMessage);
+  }
+
+  /* A message from a child frame is mapped through that iframe's box into this window's
+     client coordinates, then drawn here or, in a nested frame, forwarded one level up. */
+  function onFrameMessage(ev) {
+    var m = ev.data;
+    if (!m || m.webpen !== FRAME_MSG || typeof m.x !== "number" || typeof m.y !== "number") return;
+    var frames = document.getElementsByTagName("iframe");
+    var frame = null;
+    for (var i = 0; i < frames.length; i++) {
+      if (frames[i].contentWindow === ev.source) { frame = frames[i]; break; }
+    }
+    if (!frame) return;
+    var r = frame.getBoundingClientRect();
+    var dx = r.left + frame.clientLeft;
+    var dy = r.top + frame.clientTop;
+    m.x += dx;
+    m.y += dy;
+    if (m.points) {
+      for (var k = 0; k < m.points.length; k++) { m.points[k].x += dx; m.points[k].y += dy; }
+    }
+    if (inFrame) { window.parent.postMessage(m, "*"); return; }
+    if (!canvas) return;
+    var e = remoteEvent(m);
+    if (m.type === "pointerdown") onDown(e);
+    else if (m.type === "pointermove") onMove(e);
+    else if (m.type === "pointerup" || m.type === "pointercancel") onUp(e);
+  }
+
+  function remoteEvent(m) {
+    var sx = window.scrollX, sy = window.scrollY;
+    var e = { type: m.type, pointerType: m.pointerType, pointerId: m.tag + ":" + m.pointerId,
+              buttons: m.buttons, clientX: m.x, clientY: m.y, pageX: m.x + sx, pageY: m.y + sy,
+              target: null, preventDefault: function () {}, stopPropagation: function () {} };
+    if (m.points) {
+      e.points = m.points.map(function (p) { return { clientX: p.x, clientY: p.y, pageX: p.x + sx, pageY: p.y + sy }; });
+    }
+    return e;
   }
 
   /* ---- Drawing ---- */
@@ -627,6 +760,7 @@
   }
 
   function init() {
+    if (inFrame) { state.on = false; bindFrame(); return; }
     if (allowed || urlFlag()) { enable(); return; }
     if (sessionFlag()) { enable(); return; }
     var tries = 0;
@@ -640,9 +774,21 @@
     enable: enable,
     show: function () { enable(); setOn(true); },
     hide: function () { if (canvas) setOn(false); },
+    toggle: function () { if (canvas && state.on) setOn(false); else { enable(); setOn(true); } },
+    shown: function () { return !!canvas && state.on; },
     clear: function () { if (canvas) clear(); },
     undo: function () { if (canvas) undo(); },
-    viewport: function () { return vp; }
+    viewport: function () { return vp; },
+    state: snapshot,
+    inFrame: inFrame,
+    onChange: function (fn) { if (typeof fn === "function") changeListeners.push(fn); },
+    frameState: function (s) {
+      if (!inFrame || !s || typeof s !== "object") return;
+      state.on = !!s.on;
+      state.mode = /^(mark|pen|erase)$/.test(s.mode) ? s.mode : "laser";
+      state.allInput = !!s.allInput;
+      if (!state.on) { frameActive = null; frameTap = null; }
+    }
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

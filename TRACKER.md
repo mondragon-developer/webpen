@@ -16,6 +16,53 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-20 - Extension tested on five sites; shadow root, window capture, iframes
+
+- Test rig (kept outside the repo, in the session scratchpad): Playwright drives the
+  bundled Chromium with `--load-extension` (branded Chrome 137+ ignores that flag, so the
+  harness must use Playwright's Chromium), toggles the bar the way the toolbar button
+  does (a message to the top frame from the service worker), dispatches synthetic
+  PointerEvents of pointerType "pen" and "mouse", and reads pixels back from the overlay
+  canvas. Local pages cover a sticky header at z-index 9999, a global
+  `button{display:block;width:100%}` rule, a page that listens to pointerdown on
+  document, a body with a transform, and a page with a same-origin and a cross-origin
+  (YouTube) iframe. Live sites: Wikipedia, BBC News, Excalidraw, GeoGebra calculator.
+  MDN was unreachable from this machine (connection reset, also with curl), not a bug.
+- What broke and the fix, all in `src/presenter.js`:
+  - The page's own `button` CSS restyled the bar (buttons 588 px wide, bar 364 px tall).
+    The canvas and the dock now live in an open shadow root on one `div.presenter-host`
+    appended to `<html>`, with `:host{all:initial}` so nothing inherits in either. The
+    host carries the only z-index (`Z_INDEX`); canvas and dock stack inside it. Appending
+    to `<html>` instead of `<body>` also survives a transformed body, which otherwise
+    pins position: fixed to the page.
+  - A page that registered a capture listener on `document` before the overlay saw every
+    pen event. Input listeners moved from `document` to `window` (capture), which runs
+    first; `isUi()` reads `composedPath()[0]` because events from the shadow tree reach
+    window retargeted to the host.
+  - A pen over an iframe never reached the top document. The extension now injects in
+    every frame (`all_frames`); inside a frame the script builds no UI, captures the pen
+    with the same rules and forwards the points to the parent with postMessage, which
+    maps them through the iframe's box and draws (top) or forwards again (nested). The
+    frame learns on/off and mode only through `Presenter.frameState()`, fed by
+    `content.js` from the top frame through the service worker, never from postMessage,
+    so a page cannot switch the capture on or read pen positions inside an embed unless
+    the instructor turned the bar on. Laser taps inside a frame are replayed by the
+    frame itself (`tapThrough` at the top skips iframes).
+  - A toolbar click before `document_idle` injected the scripts a second time and the
+    second `onMessage` listener undid the first toggle. `content.js` now guards with
+    `window.webpenBound` and calls the new `Presenter.toggle()` instead of poking at
+    `.presenter-bar` (which the shadow root hides anyway). `host_permissions` added so
+    the on-demand injection also works without a fresh gesture.
+- `Presenter` API grew: `toggle()`, `shown()`, `state()`, `onChange(fn)`, `inFrame`,
+  `frameState(s)`. Existing calls unchanged.
+- Ported to the lessons site by hand (`Z_INDEX` 5900 there, nothing sits between 5900
+  and 5950 so one host replaces the old canvas/dock pair) and logged in its tracker. The
+  lessons copy was checked with the same pen harness on lesson 3 served locally; not
+  deployed.
+- Still needs the iPad: pencil over a YouTube or Desmos embed in Safari (the bookmarklet
+  cannot inject into cross-origin frames, so only same-document content draws there),
+  and a sanity pass that the shadow-root bar still follows pinch zoom.
+
 ### 2026-10-20 - Project created from the lessons overlay
 
 - `src/presenter.js` copied from the lessons site as of its 2026-10-20 state (visual
@@ -33,18 +80,17 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] Load `extension/` unpacked in Chrome, open three different sites (a news site,
-      a Google Doc, a page with its own fixed header) and check: button shows the bar,
-      laser and pen draw over the page, scrolling keeps marks in place, button hides it.
-- [ ] Try the bookmarklet page on the iPad: build the bookmark, use it on two sites,
-      note which sites refuse it (Content Security Policy).
-- [ ] Give this project its own Netlify site (or GitHub Pages) hosting `presenter.js`
-      and the bookmarklet page, then point `SCRIPT_URL` at it so the lessons site and
-      this project can evolve separately.
+- [ ] Serve `bookmarklet/index.html` locally, build the bookmark in desktop Chrome and
+      use it on two sites; write exact iPad Safari steps. Note which sites refuse it
+      (Content Security Policy).
+- [ ] Give this project its own Netlify site hosting `presenter.js` at `/presenter.js`
+      and the bookmarklet page at `/`, then point `SCRIPT_URL` at it so the lessons site
+      and this project can evolve separately. Deploy stays a manual command.
 - [ ] Decide the single source of truth for `presenter.js`: either the lessons site
       copies from here on each release, or this repo pulls from the lessons site.
 - [ ] Extension polish: icons (16/32/48/128), a popup with the same buttons as the bar
       for mouse users, keyboard shortcut to toggle, store listing text.
+- [ ] iPad checks listed under the 2026-10-20 entry above.
 - [ ] Later: Safari Web Extension wrapper (Xcode) so the iPad gets a real toggle
       without a bookmark.
 
@@ -52,3 +98,5 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 - No emojis. Plain hyphens. Commits carry no tool attribution.
 - Log every session here in the same commit.
+- Test with a local static server and synthetic "pen" pointer events plus canvas pixel
+  reads; anything about touch, pinch zoom or Safari needs the real iPad.
