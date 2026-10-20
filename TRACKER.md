@@ -92,7 +92,7 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ### 2026-10-20 - Extension tested on five sites; shadow root, window capture, iframes
 
-- Test rig (kept outside the repo, in the session scratchpad): Playwright drives the
+- Test rig (`tests/`, see its README): Playwright drives the
   bundled Chromium with `--load-extension` (branded Chrome 137+ ignores that flag, so the
   harness must use Playwright's Chromium), toggles the bar the way the toolbar button
   does (a message to the top frame from the service worker), dispatches synthetic

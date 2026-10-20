@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Fixed header page</title>
+<style>
+  body{margin:0;font:16px sans-serif}
+  header{position:fixed;top:0;left:0;right:0;height:60px;background:#1e3a8a;color:#fff;z-index:9999;display:flex;align-items:center;padding:0 16px}
+  main{padding:80px 16px 16px}
+  p{height:120px;border-bottom:1px dashed #999}
+  button{display:block;width:100%;font-size:28px;border:4px solid red;border-radius:0;text-transform:uppercase}
+  canvas{border:3px solid green;background:white;width:100%;display:block}
+</style></head><body>
+<header>Sticky header z 9999</header>
+<main>
+<button id="pagebtn" onclick="document.getElementById('hits').textContent=(+document.getElementById('hits').textContent)+1">Page button (hostile global button css)</button>
+<p>Hits: <span id="hits">0</span></p>
+<p id="p1">Paragraph 1</p><p>2</p><p>3</p><p>4</p><p>5</p><p>6</p><p>7</p><p>8</p><p>9</p><p>10</p>
+<canvas width="300" height="100"></canvas>
+<p>11</p><p>12</p><p>13</p><p>14</p><p>15</p><p>16</p><p>17</p><p>18</p><p>19</p><p>20</p>
+</main>
+<script>
+  // Page that owns pointer events on the document, registered before the extension's.
+  window.pageEvents = [];
+  document.addEventListener("pointerdown", (e) => { window.pageEvents.push("down:" + e.pointerType); }, true);
+  document.addEventListener("pointermove", (e) => { if (e.buttons) window.pageEvents.push("move"); }, true);
+</script>
+</body></html>

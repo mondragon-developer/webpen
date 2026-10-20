@@ -1,0 +1,8 @@
+{
+  "name": "webpen-presenter-tests",
+  "private": true,
+  "description": "Playwright rig: synthetic pen events and canvas pixel reads against the extension and the bookmarklet",
+  "devDependencies": {
+    "playwright": "1.59.0"
+  }
+}
