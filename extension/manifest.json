@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "WebPen Presenter",
+  "version": "0.1.0",
+  "description": "Laser pointer, highlighter, pen and quick notes over any web page, for teaching on a screen share.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "Show or hide the presenter tools"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["presenter.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

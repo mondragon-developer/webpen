@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebPen Presenter bookmarklet</title>
+<style>
+  body { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
+  textarea { width: 100%; height: 120px; font: 13px/1.4 ui-monospace, Menlo, monospace; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 0; background: #0f172a; color: #fff; }
+  ol li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<h1>WebPen Presenter bookmarklet</h1>
+<p>A bookmark that puts the laser, highlighter, pen and quick notes over any web page. Tap it on the page you are sharing.</p>
+
+<h2>1. Copy the code</h2>
+<textarea id="code" readonly></textarea>
+<p><button id="copy" type="button">Copy the code</button> <span id="status"></span></p>
+
+<h2>2. Make the bookmark (iPad Safari, once)</h2>
+<ol>
+  <li>Bookmark this page: share button, <b>Add Bookmark</b>, name it <b>Presenter</b>, save.</li>
+  <li>Open the bookmarks list, tap <b>Edit</b>, tap <b>Presenter</b>.</li>
+  <li>Clear the address field, paste the code, tap <b>Done</b>.</li>
+</ol>
+<p>On a computer: show the bookmarks bar, add a bookmark named Presenter, paste the code as its address. Or drag this link to the bar: <a id="drag" href="#">Presenter</a>.</p>
+
+<h2>3. Use it</h2>
+<ol>
+  <li>Open any website in Safari.</li>
+  <li>Open the bookmarks, tap <b>Presenter</b>. The Pointer chip appears bottom-left.</li>
+  <li>Laser points and writes quick notes that fade; Mark and Pen stay until Clear; Erase, Undo, Red / Blue, Thick as in the lessons. Share the screen as usual.</li>
+  <li>After a reload or on a new site, tap the bookmark again.</li>
+</ol>
+<p>Limits: only inside a web page (not the home screen, not apps, not Safari's PDF viewer). A few sites that forbid outside scripts will ignore it.</p>
+
+<script>
+  // Where presenter.js is hosted. Change it when this project gets its own site.
+  var SCRIPT_URL = "https://statistics-lessons.netlify.app/shared/presenter.js";
+  var code = "javascript:(function(){if(window.Presenter){Presenter.show();return;}var s=document.createElement('script');s.src='" + SCRIPT_URL + "?v='+Date.now();s.onload=function(){Presenter.show();};document.head.appendChild(s);})();";
+  document.getElementById("code").value = code;
+  document.getElementById("drag").href = code;
+  document.getElementById("copy").addEventListener("click", function () {
+    var t = document.getElementById("code");
+    t.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(function () { document.getElementById("status").textContent = "Copied."; });
+    } else {
+      document.execCommand("copy");
+      document.getElementById("status").textContent = "Copied.";
+    }
+  });
+</script>
+</body>
+</html>
