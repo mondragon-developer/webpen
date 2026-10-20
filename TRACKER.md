@@ -16,6 +16,30 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-20 - Bookmarklet checked in desktop Chromium; exact iPad steps written
+
+- Harness: plain Chromium (no extension) opens `bookmarklet/index.html` from a local
+  static server, reads the code the page offers, runs it on each site and then runs the
+  same pen checks as the extension suite (laser, red and blue pen, mouse ignored, erase,
+  undo, scroll, clear, second tap keeps the bar without a second script tag). While the
+  file is not hosted yet, the harness answers the hosted URL with the local
+  `src/presenter.js` through a request route (an https page refuses an http script, so
+  a plain local server cannot stand in).
+- Results: BBC News and a lesson page from the lessons site served locally pass every
+  check. Wikipedia and GitHub never load the script: both send a Content Security Policy
+  with a `script-src` list. Headers checked with curl for the sites an instructor is
+  likely to open: blocked are GitHub, Wikipedia, YouTube, Google Docs, GeoGebra; open
+  are BBC, Desmos, Khan Academy, Canvas LMS, Excalidraw. Listed on the page.
+- `bookmarklet/index.html` rewritten: numbered iPad Safari steps (Share, Add Bookmark,
+  then Edit the bookmark and paste the code over its address; Favorites bar tip),
+  computer steps (Ctrl+Shift+B, drag the button), use steps, limits (CSP sites, iframes
+  under the bookmark), privacy line. `SCRIPT_URL` now points at the project's own host,
+  `https://webpen-presenter.netlify.app/presenter.js`, which does not exist until the
+  deploy in the next entry runs; until then the bookmark loads nothing.
+- Needs the real iPad: the bookmark editing steps follow the current iPadOS Safari
+  layout (book icon, Edit at the bottom of the bookmarks list) and should be walked once;
+  tap the bookmark on a BBC article and confirm the bar appears and the pencil draws.
+
 ### 2026-10-20 - Extension tested on five sites; shadow root, window capture, iframes
 
 - Test rig (kept outside the repo, in the session scratchpad): Playwright drives the
@@ -80,9 +104,6 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] Serve `bookmarklet/index.html` locally, build the bookmark in desktop Chrome and
-      use it on two sites; write exact iPad Safari steps. Note which sites refuse it
-      (Content Security Policy).
 - [ ] Give this project its own Netlify site hosting `presenter.js` at `/presenter.js`
       and the bookmarklet page at `/`, then point `SCRIPT_URL` at it so the lessons site
       and this project can evolve separately. Deploy stays a manual command.

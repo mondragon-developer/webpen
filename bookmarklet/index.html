@@ -8,49 +8,66 @@
   body { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
   textarea { width: 100%; height: 120px; font: 13px/1.4 ui-monospace, Menlo, monospace; }
   button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 0; background: #0f172a; color: #fff; }
-  ol li { margin-bottom: 8px; }
+  ol li, ul li { margin-bottom: 8px; }
+  a.drag { display: inline-block; padding: 8px 14px; border-radius: 999px; background: #dc2626; color: #fff; text-decoration: none; font-weight: 600; }
+  code { font: 14px ui-monospace, Menlo, monospace; }
+  footer { margin-top: 48px; font-size: 14px; color: #475569; }
 </style>
 </head>
 <body>
 <h1>WebPen Presenter bookmarklet</h1>
-<p>A bookmark that puts the laser, highlighter, pen and quick notes over any web page. Tap it on the page you are sharing.</p>
+<p>A bookmark that puts a laser pointer, highlighter, pen and fading quick notes over any web page, so a screen share shows what you point at and write. Made for an iPad with an Apple Pencil; a mouse works too.</p>
 
 <h2>1. Copy the code</h2>
 <textarea id="code" readonly></textarea>
 <p><button id="copy" type="button">Copy the code</button> <span id="status"></span></p>
 
-<h2>2. Make the bookmark (iPad Safari, once)</h2>
+<h2>2. Make the bookmark on the iPad (Safari, once)</h2>
 <ol>
-  <li>Bookmark this page: share button, <b>Add Bookmark</b>, name it <b>Presenter</b>, save.</li>
-  <li>Open the bookmarks list, tap <b>Edit</b>, tap <b>Presenter</b>.</li>
-  <li>Clear the address field, paste the code, tap <b>Done</b>.</li>
+  <li>With this page open, tap the <b>Share</b> button (the square with an arrow), then <b>Add Bookmark</b>. Name it <b>Presenter</b>, keep the location as Favorites, tap <b>Save</b>.</li>
+  <li>Tap <b>Copy the code</b> above.</li>
+  <li>Open the bookmarks: tap the <b>book</b> icon (in the sidebar or the toolbar). Make sure the Bookmarks tab is selected, then tap <b>Edit</b> at the bottom.</li>
+  <li>Tap the <b>Presenter</b> bookmark. Tap the address field under the name, tap it again and choose <b>Select All</b>, then <b>Paste</b>. The field now starts with <code>javascript:</code>.</li>
+  <li>Tap <b>Done</b>, then <b>Done</b> again.</li>
 </ol>
-<p>On a computer: show the bookmarks bar, add a bookmark named Presenter, paste the code as its address. Or drag this link to the bar: <a id="drag" href="#">Presenter</a>.</p>
+<p>Optional, saves a tap every time: Settings, Safari, turn on <b>Show Favorites Bar</b>. The Presenter bookmark then sits under the address bar on every page.</p>
+
+<h2>Make the bookmark on a computer</h2>
+<p>Chrome or Edge: press <b>Ctrl+Shift+B</b> (Mac: <b>Cmd+Shift+B</b>) to show the bookmarks bar, then drag this button onto it:</p>
+<p><a id="drag" class="drag" href="#">Presenter</a></p>
+<p>If dragging does not work, right-click the bookmarks bar, choose <b>Add page</b>, name it Presenter and paste the code as the URL.</p>
 
 <h2>3. Use it</h2>
 <ol>
-  <li>Open any website in Safari.</li>
-  <li>Open the bookmarks, tap <b>Presenter</b>. The Pointer chip appears bottom-left.</li>
-  <li>Laser points and writes quick notes that fade; Mark and Pen stay until Clear; Erase, Undo, Red / Blue, Thick as in the lessons. Share the screen as usual.</li>
-  <li>After a reload or on a new site, tap the bookmark again.</li>
+  <li>Open the website you want to present in Safari and start the screen share.</li>
+  <li>Tap the <b>Presenter</b> bookmark (from the Favorites bar, or book icon then Presenter). The tool bar appears bottom-left.</li>
+  <li><b>Laser</b> points and writes quick notes that fade on their own; a quick pencil tap presses the button under it. <b>Mark</b> and <b>Pen</b> stay until <b>Clear</b>; <b>Red</b>/<b>Blue</b> and <b>Thick</b> change the pen; <b>Erase</b> rubs out part of a line; <b>Undo</b> takes back the last stroke; <b>Finger</b> lets fingers draw too; <b>Hide</b> leaves a small Pointer chip to bring the bar back.</li>
+  <li>Fingers keep scrolling and tapping the page while the pencil draws. After a reload or on another site, tap the bookmark again.</li>
 </ol>
-<p>Limits: only inside a web page (not the home screen, not apps, not Safari's PDF viewer). A few sites that forbid outside scripts will ignore it.</p>
+
+<h2>Limits</h2>
+<ul>
+  <li>Works only inside a web page: not on the home screen, in other apps, or in Safari's PDF viewer.</li>
+  <li>Sites that forbid outside scripts (a strict Content Security Policy) ignore the bookmark: GitHub, Wikipedia, YouTube, Google Docs and Slides, GeoGebra. For those, use the Chrome extension on a computer. News sites, Desmos, Khan Academy, Canvas LMS and Excalidraw accept it.</li>
+  <li>Inside an embedded video or calculator (an iframe) the pencil reaches the embed, not the overlay. The extension handles that; the bookmark does not.</li>
+</ul>
+
+<footer>
+  <p>The script draws only in your browser and sends nothing anywhere. <a href="privacy.html">Privacy</a>.</p>
+</footer>
 
 <script>
-  // Where presenter.js is hosted. Change it when this project gets its own site.
-  var SCRIPT_URL = "https://statistics-lessons.netlify.app/shared/presenter.js";
+  var SCRIPT_URL = "https://webpen-presenter.netlify.app/presenter.js";
   var code = "javascript:(function(){if(window.Presenter){Presenter.show();return;}var s=document.createElement('script');s.src='" + SCRIPT_URL + "?v='+Date.now();s.onload=function(){Presenter.show();};document.head.appendChild(s);})();";
   document.getElementById("code").value = code;
   document.getElementById("drag").href = code;
+  document.getElementById("drag").addEventListener("click", function (e) { e.preventDefault(); });
   document.getElementById("copy").addEventListener("click", function () {
     var t = document.getElementById("code");
     t.select();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(code).then(function () { document.getElementById("status").textContent = "Copied."; });
-    } else {
-      document.execCommand("copy");
-      document.getElementById("status").textContent = "Copied.";
-    }
+    var done = function () { document.getElementById("status").textContent = "Copied."; };
+    if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, function () { document.execCommand("copy"); done(); });
+    else { document.execCommand("copy"); done(); }
   });
 </script>
 </body>
