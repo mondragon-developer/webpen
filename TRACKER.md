@@ -16,6 +16,36 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-20 - Extension polish: icons, popup, keyboard shortcut, store listing
+
+- Icons 16/32/48/128 drawn by `scripts/icons.py` (Pillow): dark rounded tile, white
+  stroke, red laser dot. Re-run the script to regenerate; the PNGs are committed.
+- The toolbar button now opens `popup.html`, a copy of the bar for mouse users (show or
+  hide, Laser, Mark, Pen, color, Thick, Erase, Undo, Clear, Finger). Every button sends
+  one command through the service worker to the tab the popup was opened on and
+  repaints from the state the page returns; a page that refuses scripts (chrome://, the
+  Web Store) disables the buttons with a note. Because a popup swallows the toolbar
+  click, the on-page toggle moved to a keyboard command, `toggle-bar`, suggested as
+  Alt+Shift+P. `background.js` has one `command()` path for both (inject on demand,
+  then send); `content.js` answers a single `webpen-cmd` message type (toggle, show,
+  hide, undo, clear, set). `Presenter.set({mode, color, thick, allInput})` added to the
+  overlay for this; synced to `extension/` (not yet ported to the lessons copy, it is
+  additive and the lessons never call it).
+- Tested with the harness: popup opened as a page aimed at the test tab, each button
+  checked against the page's bar state and canvas pixels (12 checks pass), the toggle
+  command message shows the bar, the browser-page note appears. The full five-site
+  suite re-run after the protocol change: 61 pass, MDN still unreachable. The harness
+  taught one thing worth keeping: a hidden tab gets no animation frames, so the page
+  under test must stay in front or the overlay never repaints.
+- `chrome.commands.getAll()` in the test profile reports `toggle-bar` without a key, so
+  the Alt+Shift+P binding could not be confirmed there. Check once in a real profile at
+  chrome://extensions/shortcuts after loading unpacked.
+- `store/listing.md`: summary, description, category, single-purpose statement,
+  permission justifications, data-usage answer, privacy policy URL (on the Netlify site),
+  packaging steps. `store/screenshot-1.png` and `-2.png` (1280x800) captured by the
+  harness on the Wikipedia normal distribution article with highlighter, pen, laser note,
+  the bar, and the popup pasted in.
+
 ### 2026-10-20 - Hosting prepared: Netlify site folder, deploy left to run by hand
 
 - `netlify.toml` publishes `site/`, no build command, short cache and open CORS on
@@ -128,8 +158,11 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
       bookmark loads from the new host on the iPad.
 - [ ] Decide the single source of truth for `presenter.js`: either the lessons site
       copies from here on each release, or this repo pulls from the lessons site.
-- [ ] Extension polish: icons (16/32/48/128), a popup with the same buttons as the bar
-      for mouse users, keyboard shortcut to toggle, store listing text.
+- [ ] Load `extension/` unpacked in a real Chrome profile once: confirm the icon, the
+      popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.
+      Then zip `extension/` and submit with `store/listing.md` (needs the privacy page
+      deployed first).
+- [ ] Port `Presenter.set` to the lessons copy on its next sync.
 - [ ] iPad checks listed under the 2026-10-20 entry above.
 - [ ] Later: Safari Web Extension wrapper (Xcode) so the iPad gets a real toggle
       without a bookmark.

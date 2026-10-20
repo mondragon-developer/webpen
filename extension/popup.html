@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WebPen Presenter</title>
+<style>
+  body { margin: 0; width: 232px; padding: 10px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #e2e8f0; background: #0f172a; }
+  h1 { margin: 0 0 8px; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+  button { min-height: 32px; padding: 4px 8px; border: 0; border-radius: 999px; background: #1e293b; color: #e2e8f0; font: inherit; cursor: pointer; }
+  button:hover, button:focus-visible { background: #334155; }
+  button[aria-pressed="true"] { background: #dc2626; color: #fff; }
+  button[aria-pressed="true"]:hover { background: #b91c1c; }
+  #toggle { grid-column: 1 / -1; background: #334155; font-weight: 600; }
+  #toggle[aria-pressed="true"] { background: #dc2626; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; box-shadow: 0 0 0 1.5px #e2e8f0; }
+  #note { margin: 8px 0 0; color: #94a3b8; min-height: 1.4em; }
+  kbd { font: 11px ui-monospace, Menlo, monospace; color: #94a3b8; }
+</style>
+</head>
+<body>
+<h1>WebPen Presenter <kbd>Alt+Shift+P</kbd></h1>
+<div class="grid">
+  <button id="toggle" type="button" aria-pressed="false">Show the bar</button>
+  <button type="button" data-mode="laser" title="Red dot with a fading trail">Laser</button>
+  <button type="button" data-mode="mark" title="Translucent highlighter, stays until Clear">Mark</button>
+  <button type="button" data-mode="pen" title="Line that stays until Clear">Pen</button>
+  <button type="button" id="color" title="Pen color: red or blue"><span class="swatch" id="swatch"></span><span id="colorLabel">Red</span></button>
+  <button type="button" id="thick" title="Thicker pen and highlighter">Thick</button>
+  <button type="button" data-mode="erase" title="Rub out part of a mark or line">Erase</button>
+  <button type="button" id="undo" title="Take back the last stroke, erase or clear">Undo</button>
+  <button type="button" id="clear" title="Erase every mark and line">Clear</button>
+  <button type="button" id="finger" title="Draw with fingers and mouse too; the page cannot be clicked while on">Finger</button>
+</div>
+<p id="note"></p>
+<script src="popup.js"></script>
+</body>
+</html>

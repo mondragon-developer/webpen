@@ -770,6 +770,8 @@
     }, 1000);
   }
 
+  /* set() takes any of mode, color, thick, allInput, for a carrier's own buttons (the
+     extension popup) so mouse users need not reach the bar on the page. */
   window.Presenter = {
     enable: enable,
     show: function () { enable(); setOn(true); },
@@ -780,6 +782,14 @@
     undo: function () { if (canvas) undo(); },
     viewport: function () { return vp; },
     state: snapshot,
+    set: function (s) {
+      if (!s || typeof s !== "object") return;
+      enable();
+      if (/^(laser|mark|pen|erase)$/.test(s.mode)) setMode(s.mode);
+      if (s.color === "red" || s.color === "blue") setColor(s.color);
+      if (typeof s.thick === "boolean") setThick(s.thick);
+      if (typeof s.allInput === "boolean") setAllInput(s.allInput);
+    },
     inFrame: inFrame,
     onChange: function (fn) { if (typeof fn === "function") changeListeners.push(fn); },
     frameState: function (s) {

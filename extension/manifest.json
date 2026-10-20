@@ -1,12 +1,29 @@
 {
   "manifest_version": 3,
   "name": "WebPen Presenter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Laser pointer, highlighter, pen and quick notes over any web page, for teaching on a screen share.",
   "permissions": ["activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
-    "default_title": "Show or hide the presenter tools"
+    "default_title": "WebPen Presenter (Alt+Shift+P shows or hides the bar)",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "commands": {
+    "toggle-bar": {
+      "suggested_key": { "default": "Alt+Shift+P" },
+      "description": "Show or hide the presenter bar"
+    }
   },
   "background": {
     "service_worker": "background.js"

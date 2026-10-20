@@ -23,11 +23,20 @@
   // Frames that loaded before this top frame asked for the state and got nothing.
   report(Presenter.state());
 
+  function run(cmd, value) {
+    if (cmd === "toggle") Presenter.toggle();
+    else if (cmd === "show") Presenter.show();
+    else if (cmd === "hide") Presenter.hide();
+    else if (cmd === "undo") Presenter.undo();
+    else if (cmd === "clear") Presenter.clear();
+    else if (cmd === "set") Presenter.set(value);
+  }
+
   chrome.runtime.onMessage.addListener(function (msg, sender, reply) {
     if (!msg) return;
-    if (msg.type === "webpen-toggle") {
-      Presenter.toggle();
-      reply({ ok: true, on: Presenter.shown() });
+    if (msg.type === "webpen-cmd") {
+      run(msg.cmd, msg.value);
+      reply(Presenter.state());
     } else if (msg.type === "webpen-state?") {
       reply(Presenter.state());
     }
