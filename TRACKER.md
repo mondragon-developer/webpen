@@ -16,6 +16,26 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-20 - Hosting prepared: Netlify site folder, deploy left to run by hand
+
+- `netlify.toml` publishes `site/`, no build command, short cache and open CORS on
+  `/presenter.js`. `scripts/sync.py` now also assembles `site/` (presenter.js plus every
+  page in `bookmarklet/`, so `/` is the bookmarklet page and `/privacy.html` the privacy
+  note the store listing needs); `site/` and `.netlify/` are ignored by git.
+- Site name chosen: `webpen-presenter` (`https://webpen-presenter.netlify.app` returned
+  Netlify's 404, so it was free at the time of writing). `SCRIPT_URL` already points at
+  it. Nothing has been created or deployed. To go live, from this folder:
+
+      python scripts/sync.py
+      netlify sites:create --name webpen-presenter
+      netlify deploy --prod
+
+  then open https://webpen-presenter.netlify.app/ and tap the bookmark on a BBC
+  article. If the name is taken, pick another in `sites:create` and change `SCRIPT_URL`
+  in `bookmarklet/index.html` to match before deploying.
+- The lessons site keeps its own copy at `/shared/presenter.js`; the bookmark no longer
+  depends on it.
+
 ### 2026-10-20 - Bookmarklet checked in desktop Chromium; exact iPad steps written
 
 - Harness: plain Chromium (no extension) opens `bookmarklet/index.html` from a local
@@ -104,9 +124,8 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] Give this project its own Netlify site hosting `presenter.js` at `/presenter.js`
-      and the bookmarklet page at `/`, then point `SCRIPT_URL` at it so the lessons site
-      and this project can evolve separately. Deploy stays a manual command.
+- [ ] Run the three deploy commands under the hosting entry above, then confirm the
+      bookmark loads from the new host on the iPad.
 - [ ] Decide the single source of truth for `presenter.js`: either the lessons site
       copies from here on each release, or this repo pulls from the lessons site.
 - [ ] Extension polish: icons (16/32/48/128), a popup with the same buttons as the bar

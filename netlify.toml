@@ -1,0 +1,18 @@
+# The publish folder is generated: run `python scripts/sync.py` first, then
+# `netlify deploy --prod`. Nothing is built on Netlify's side.
+[build]
+  publish = "site"
+  command = ""
+
+[[headers]]
+  for = "/presenter.js"
+  [headers.values]
+    Cache-Control = "public, max-age=300"
+    Access-Control-Allow-Origin = "*"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
