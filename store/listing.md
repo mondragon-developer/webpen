@@ -80,3 +80,16 @@ Run `python scripts/sync.py`, then `python scripts/pack.py`, which writes
 (manifest.json, background.js, content.js, presenter.js, popup.html, popup.js, icons/).
 Upload that zip. Do not zip with PowerShell's Compress-Archive: its entry names carry
 backslashes and the store then cannot find the icons.
+
+## Updating a published version
+
+1. Raise `"version"` in `extension/manifest.json` (the store refuses a zip with a
+   version it already has).
+2. `python scripts/sync.py`, then `python scripts/pack.py`.
+3. In the developer dashboard open the item, go to Package, upload the new zip. The
+   listing text and screenshots stay as they are.
+4. Submit for review. Installed copies update on their own once it is approved.
+
+The bookmark needs no store: `netlify deploy --prod` after `sync.py` and every bookmark
+loads the new file on its next tap. The lessons site keeps its own copy and deploys
+separately.
