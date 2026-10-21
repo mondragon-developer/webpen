@@ -1,4 +1,5 @@
-/* Presenter overlay for live classes taught from a tablet.
+/* WebPen Presenter, by Jose Mondragon. MIT License.
+   Presenter overlay for live classes taught from a tablet.
    Zoom shares pixels only, so a pencil hovering over a shared lesson is invisible to
    students unless the page itself draws it. This script loads on every lesson and does
    nothing for students. It shows a small "Pointer" chip when the page is opened with

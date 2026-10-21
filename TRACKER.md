@@ -16,6 +16,26 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-21 - Deployed; setup page rewritten for non-technical readers; author and MIT license
+
+- `netlify deploy --prod` from `site/` (deploy 6ad8d99cd17160cf0bc8171d). Checked live
+  with curl: the CSP, HSTS (Netlify adds `preload`), `X-Frame-Options: DENY` and
+  nosniff headers are served on `/`; `/presenter.js` keeps max-age 300 and open CORS
+  and is byte-identical to `src/`. `tests/bookmarklet.js` re-run with `HOSTED=1`
+  against the live file: BBC passes every check, Wikipedia and GitHub blocked by CSP
+  as before. The CSP did not break the page: the copy button, the drag link and the
+  code textarea all come from `bookmarklet.js`.
+- `bookmarklet/index.html` rewritten in plain language: what it is in one line, the
+  iPad setup as three numbered steps (save the bookmark, copy the code with one
+  button, paste it over the address), the code itself folded away under "Show the
+  code", computer setup, a "Use it in class" section with one plain sentence per tool,
+  and "If it does not work". Same ids and the same `bookmarklet.js`, so the harness
+  and the generated code are unchanged.
+- Marked as Jose Mondragon's work under the MIT License: `LICENSE` added, a section in
+  `README.md`, a footer line on the setup and privacy pages, `"author"` in
+  `manifest.json`, and a first line in the header comment of `src/presenter.js`
+  (ported to the lessons copy as well, so the files still differ only in `Z_INDEX`).
+
 ### 2026-10-21 - Security review: frame messages hardened, permissions and listing aligned, site headers
 
 - Review of the overlay, the extension, the bookmarklet page and the Netlify config. One
@@ -225,9 +245,6 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
       popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.
       Then zip `extension/` and submit with `store/listing.md` (needs the privacy page
       deployed first).
-- [ ] Deploy the hardened file and the new headers: `python scripts/sync.py` then
-      `netlify deploy --prod`; open the bookmarklet page and check the console for CSP
-      reports.
 - [ ] Decide on subresource integrity for the bookmark (see the 2026-10-21 entry).
 - [ ] iPad checks listed under the 2026-10-20 entry above.
 - [ ] Later: Safari Web Extension wrapper (Xcode) so the iPad gets a real toggle

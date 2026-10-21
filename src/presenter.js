@@ -1,4 +1,5 @@
-/* Presenter overlay for live classes taught from a tablet.
+/* WebPen Presenter, by Jose Mondragon. MIT License.
+   Presenter overlay for live classes taught from a tablet.
    Zoom shares pixels only, so a pencil hovering over a shared lesson is invisible to
    students unless the page itself draws it. This script loads on every lesson and does
    nothing for students. It shows a small "Pointer" chip when the page is opened with
@@ -20,7 +21,10 @@
    box and either draws them (top frame) or forwards again. The frame learns whether the
    presenter is on through Presenter.frameState(), which the carrier feeds from the top
    frame over its own channel, never from postMessage, so a page cannot switch the capture
-   on by itself. Laser taps inside a frame are replayed by the frame itself.
+   on by itself. That state also carries a token the frame echoes in every message; the top
+   frame drops messages without it, clamps every point to the sender's box and never
+   replays a remote tap, so a hostile iframe can neither draw outside itself nor click the
+   page. Laser taps inside a frame are replayed by the frame itself.
 
    Input rule: a pen (Apple Pencil, pointerType "pen") is captured in every mode, so it
    never scrolls or selects; fingers keep working the lesson underneath. In Mark and Pen
@@ -58,6 +62,7 @@
   var LIFT_FADE = 300; // ms the notes take to vanish once the hold is over
   var HOVER_IDLE = 1500;
   var MAX_TRACE = 12000; // pressed trace points; coalesced pen events add several per frame
+  var MAX_REMOTE_POINTS = 64; // coalesced points one frame message may carry; more is a flood
   var ERASE_RADIUS = 14; // px around the eraser point; a stroke's half width is added on top
 
   /* Everything sits in a shadow root, so page rules never match the canvas or the buttons;
@@ -117,6 +122,21 @@
   try { inFrame = window.top !== window; } catch (e) { inFrame = true; }
   var frameTag = Math.random().toString(36).slice(2, 8); // keeps pointer ids from different frames apart at the top
   var changeListeners = [];
+  var sessionPoll = 0;
+  /* Only the carrier's own channel hands this token to frames (a page never sees extension
+     messages), so a message without it comes from the page, not from this script. A
+     bookmarklet has no such channel, gives out no token, and so ignores every message. */
+  var frameToken = inFrame ? null : makeToken();
+
+  function makeToken() {
+    var bytes = new Uint8Array(16);
+    try { crypto.getRandomValues(bytes); } catch (e) {
+      for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    var s = "";
+    for (var j = 0; j < bytes.length; j++) s += (bytes[j] + 256).toString(16).slice(1);
+    return s;
+  }
 
   try {
     var saved = JSON.parse(sessionStorage.getItem(STORE) || "null");
@@ -138,7 +158,9 @@
   }
 
   function snapshot() {
-    return { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick };
+    var s = { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick };
+    if (frameToken) s.token = frameToken;
+    return s;
   }
 
   function urlFlag() {
@@ -446,7 +468,7 @@
     tap = null;
     if (state.mode === "laser") {
       addLaser(e, true, true);
-      if (!state.allInput) tap = { x: e.clientX, y: e.clientY, t: performance.now() };
+      if (!state.allInput && !e.remote) tap = { x: e.clientX, y: e.clientY, t: performance.now() };
       return;
     }
     if (state.mode === "erase") {
@@ -546,7 +568,8 @@
   var frameTap = null;
 
   function post(type, e, pts) {
-    var msg = { webpen: FRAME_MSG, type: type, tag: frameTag, pointerId: e.pointerId,
+    if (!frameToken) return;
+    var msg = { webpen: FRAME_MSG, token: frameToken, type: type, tag: frameTag, pointerId: e.pointerId,
                 pointerType: e.pointerType, buttons: e.buttons, x: e.clientX, y: e.clientY };
     if (pts) msg.points = pts.map(function (p) { return { x: p.clientX, y: p.clientY }; });
     window.parent.postMessage(msg, "*");
@@ -596,11 +619,18 @@
     window.addEventListener("message", onFrameMessage);
   }
 
-  /* A message from a child frame is mapped through that iframe's box into this window's
-     client coordinates, then drawn here or, in a nested frame, forwarded one level up. */
+  function finite(v) {
+    return typeof v === "number" && isFinite(v);
+  }
+
+  /* A message from a child frame is rebuilt field by field (nothing from the page is passed
+     through as is), mapped through that iframe's box into this window's client coordinates,
+     then drawn here or, in a nested frame, forwarded one level up. A point is clamped to the
+     sender's box, so whatever a frame claims, it can only ever touch its own area. */
   function onFrameMessage(ev) {
     var m = ev.data;
-    if (!m || m.webpen !== FRAME_MSG || typeof m.x !== "number" || typeof m.y !== "number") return;
+    if (!m || m.webpen !== FRAME_MSG || !frameToken || m.token !== frameToken) return;
+    if (!/^pointer(down|move|up|cancel)$/.test(m.type) || !finite(m.x) || !finite(m.y)) return;
     var frames = document.getElementsByTagName("iframe");
     var frame = null;
     for (var i = 0; i < frames.length; i++) {
@@ -610,24 +640,36 @@
     var r = frame.getBoundingClientRect();
     var dx = r.left + frame.clientLeft;
     var dy = r.top + frame.clientTop;
-    m.x += dx;
-    m.y += dy;
-    if (m.points) {
-      for (var k = 0; k < m.points.length; k++) { m.points[k].x += dx; m.points[k].y += dy; }
+    var w = Math.max(0, frame.clientWidth);
+    var h = Math.max(0, frame.clientHeight);
+    function map(p) {
+      return { x: Math.min(Math.max(p.x, 0), w) + dx, y: Math.min(Math.max(p.y, 0), h) + dy };
     }
-    if (inFrame) { window.parent.postMessage(m, "*"); return; }
+    var head = map(m);
+    var out = { webpen: FRAME_MSG, token: frameToken, type: m.type,
+                tag: String(m.tag).slice(0, 12), pointerId: String(m.pointerId).slice(0, 12),
+                pointerType: /^(pen|mouse|touch)$/.test(m.pointerType) ? m.pointerType : "touch",
+                buttons: finite(m.buttons) ? m.buttons : 0, x: head.x, y: head.y };
+    if (Array.isArray(m.points)) {
+      out.points = [];
+      for (var k = 0; k < m.points.length && out.points.length < MAX_REMOTE_POINTS; k++) {
+        var p = m.points[k];
+        if (p && finite(p.x) && finite(p.y)) out.points.push(map(p));
+      }
+    }
+    if (inFrame) { window.parent.postMessage(out, "*"); return; }
     if (!canvas) return;
-    var e = remoteEvent(m);
-    if (m.type === "pointerdown") onDown(e);
-    else if (m.type === "pointermove") onMove(e);
-    else if (m.type === "pointerup" || m.type === "pointercancel") onUp(e);
+    var e = remoteEvent(out);
+    if (out.type === "pointerdown") onDown(e);
+    else if (out.type === "pointermove") onMove(e);
+    else onUp(e);
   }
 
   function remoteEvent(m) {
     var sx = window.scrollX, sy = window.scrollY;
     var e = { type: m.type, pointerType: m.pointerType, pointerId: m.tag + ":" + m.pointerId,
               buttons: m.buttons, clientX: m.x, clientY: m.y, pageX: m.x + sx, pageY: m.y + sy,
-              target: null, preventDefault: function () {}, stopPropagation: function () {} };
+              remote: true, target: null, preventDefault: function () {}, stopPropagation: function () {} };
     if (m.points) {
       e.points = m.points.map(function (p) { return { clientX: p.x, clientY: p.y, pageX: p.x + sx, pageY: p.y + sy }; });
     }
@@ -753,6 +795,7 @@
   /* ---- Activation ---- */
 
   function enable() {
+    if (sessionPoll) { clearInterval(sessionPoll); sessionPoll = 0; }
     if (allowed && canvas) return;
     allowed = true;
     try { sessionStorage.setItem(STORE + ":allowed", "1"); } catch (e) {}
@@ -763,10 +806,13 @@
     if (inFrame) { state.on = false; bindFrame(); return; }
     if (allowed || urlFlag()) { enable(); return; }
     if (sessionFlag()) { enable(); return; }
+    // Only a page that loads this file with its own script tag can define Session later. An
+    // extension content script has no currentScript and would otherwise poll every page.
+    if (!document.currentScript) return;
     var tries = 0;
-    var timer = setInterval(function () {
-      if (sessionFlag()) { clearInterval(timer); enable(); }
-      else if (++tries > 7200) clearInterval(timer);
+    sessionPoll = setInterval(function () {
+      if (sessionFlag()) enable();
+      else if (++tries > 7200) { clearInterval(sessionPoll); sessionPoll = 0; }
     }, 1000);
   }
 
@@ -797,6 +843,7 @@
       state.on = !!s.on;
       state.mode = /^(mark|pen|erase)$/.test(s.mode) ? s.mode : "laser";
       state.allInput = !!s.allInput;
+      if (typeof s.token === "string" && s.token) frameToken = s.token;
       if (!state.on) { frameActive = null; frameTap = null; }
     }
   };

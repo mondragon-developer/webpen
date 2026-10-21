@@ -3,57 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WebPen Presenter bookmarklet</title>
+<title>WebPen Presenter</title>
+<meta name="author" content="Jose Mondragon">
 <style>
-  body { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
-  textarea { width: 100%; height: 120px; font: 13px/1.4 ui-monospace, Menlo, monospace; }
-  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 0; background: #0f172a; color: #fff; }
-  ol li, ul li { margin-bottom: 8px; }
-  a.drag { display: inline-block; padding: 8px 14px; border-radius: 999px; background: #dc2626; color: #fff; text-decoration: none; font-weight: 600; }
-  code { font: 14px ui-monospace, Menlo, monospace; }
-  footer { margin-top: 48px; font-size: 14px; color: #475569; }
+  body { font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 680px; margin: 40px auto; padding: 0 16px; color: #0f172a; }
+  h1 { font-size: 30px; margin-bottom: 4px; }
+  h2 { font-size: 21px; margin-top: 40px; }
+  .lead { font-size: 19px; color: #334155; }
+  .box { background: #f1f5f9; border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+  ol li, ul li { margin-bottom: 10px; }
+  button { font: inherit; font-weight: 600; padding: 12px 20px; border-radius: 10px; border: 0; background: #0f172a; color: #fff; cursor: pointer; }
+  #status { margin-left: 10px; color: #15803d; font-weight: 600; }
+  details { margin-top: 10px; font-size: 14px; color: #475569; }
+  textarea { width: 100%; height: 90px; margin-top: 8px; font: 12px/1.4 ui-monospace, Menlo, monospace; }
+  a.drag { display: inline-block; padding: 12px 22px; border-radius: 999px; background: #dc2626; color: #fff; text-decoration: none; font-weight: 600; font-size: 18px; }
+  .tool { font-weight: 600; }
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 15px; color: #475569; }
 </style>
 </head>
 <body>
-<h1>WebPen Presenter bookmarklet</h1>
-<p>A bookmark that puts a laser pointer, highlighter, pen and fading quick notes over any web page, so a screen share shows what you point at and write. Made for an iPad with an Apple Pencil; a mouse works too.</p>
+<h1>WebPen Presenter</h1>
+<p class="lead">Point, highlight and write on any web page while you share your screen. Your students see exactly what you mean.</p>
+<p>Made for teaching from an iPad with an Apple Pencil. It also works on a computer with a mouse. You set it up once, in about five minutes, and after that it is one tap away on every page.</p>
 
-<h2>1. Copy the code</h2>
-<textarea id="code" readonly></textarea>
-<p><button id="copy" type="button">Copy the code</button> <span id="status"></span></p>
-
-<h2>2. Make the bookmark on the iPad (Safari, once)</h2>
+<h2>Set it up on the iPad (once)</h2>
+<p>The tool lives inside a bookmark. You will save this page as a bookmark, then replace its address with a small piece of code. Here is how.</p>
 <ol>
-  <li>With this page open, tap the <b>Share</b> button (the square with an arrow), then <b>Add Bookmark</b>. Name it <b>Presenter</b>, keep the location as Favorites, tap <b>Save</b>.</li>
-  <li>Tap <b>Copy the code</b> above.</li>
-  <li>Open the bookmarks: tap the <b>book</b> icon (in the sidebar or the toolbar). Make sure the Bookmarks tab is selected, then tap <b>Edit</b> at the bottom.</li>
-  <li>Tap the <b>Presenter</b> bookmark. Tap the address field under the name, tap it again and choose <b>Select All</b>, then <b>Paste</b>. The field now starts with <code>javascript:</code>.</li>
-  <li>Tap <b>Done</b>, then <b>Done</b> again.</li>
+  <li><b>Save this page as a bookmark.</b> Tap the <b>Share</b> button at the top of Safari (the square with an arrow pointing up), then tap <b>Add Bookmark</b>. Name it <b>Presenter</b> and tap <b>Save</b>.</li>
+  <li><b>Copy the code.</b> Tap the button below. That is all; the code is now copied.
+    <div class="box">
+      <button id="copy" type="button">Copy the code</button><span id="status"></span>
+      <details><summary>Show the code</summary><textarea id="code" readonly></textarea></details>
+    </div>
+  </li>
+  <li><b>Paste the code into the bookmark.</b> Tap the <b>book</b> icon to open your bookmarks. Tap <b>Edit</b> at the bottom, then tap the <b>Presenter</b> bookmark. Tap the address line (the one that starts with <i>https</i>), tap it once more and choose <b>Select All</b>, then <b>Paste</b>. The address now starts with <i>javascript:</i>. Tap <b>Done</b> twice.</li>
 </ol>
-<p>Optional, saves a tap every time: Settings, Safari, turn on <b>Show Favorites Bar</b>. The Presenter bookmark then sits under the address bar on every page.</p>
+<p>Tip: in Settings, Safari, turn on <b>Show Favorites Bar</b>. The Presenter bookmark then sits right under the address bar on every page.</p>
 
-<h2>Make the bookmark on a computer</h2>
-<p>Chrome or Edge: press <b>Ctrl+Shift+B</b> (Mac: <b>Cmd+Shift+B</b>) to show the bookmarks bar, then drag this button onto it:</p>
+<h2>Set it up on a computer</h2>
+<p>In Chrome or Edge, show the bookmarks bar (press <b>Ctrl+Shift+B</b>, or <b>Cmd+Shift+B</b> on a Mac). Then drag this red button onto that bar:</p>
 <p><a id="drag" class="drag" href="#">Presenter</a></p>
-<p>If dragging does not work, right-click the bookmarks bar, choose <b>Add page</b>, name it Presenter and paste the code as the URL.</p>
+<p>If dragging does not work, right-click the bookmarks bar, choose <b>Add page</b>, name it Presenter and paste the code from above as the address.</p>
 
-<h2>3. Use it</h2>
+<h2>Use it in class</h2>
 <ol>
-  <li>Open the website you want to present in Safari and start the screen share.</li>
-  <li>Tap the <b>Presenter</b> bookmark (from the Favorites bar, or book icon then Presenter). The tool bar appears bottom-left.</li>
-  <li><b>Laser</b> points and writes quick notes that fade on their own; a quick pencil tap presses the button under it. <b>Mark</b> and <b>Pen</b> stay until <b>Clear</b>; <b>Red</b>/<b>Blue</b> and <b>Thick</b> change the pen; <b>Erase</b> rubs out part of a line; <b>Undo</b> takes back the last stroke; <b>Finger</b> lets fingers draw too; <b>Hide</b> leaves a small Pointer chip to bring the bar back.</li>
-  <li>Fingers keep scrolling and tapping the page while the pencil draws. After a reload or on another site, tap the bookmark again.</li>
+  <li>Open the website you want to show and start sharing your screen.</li>
+  <li>Tap the <b>Presenter</b> bookmark. A small bar appears at the bottom left of the page.</li>
+  <li>Draw with the pencil. Your fingers still scroll and tap the page as usual.</li>
 </ol>
+<div class="box">
+  <p style="margin-top:0"><span class="tool">Laser</span>: a red dot follows the pencil. Write with it and the note stays for a moment, then fades away on its own. A quick tap presses whatever is under the dot, so you can click buttons with the pencil too.</p>
+  <p><span class="tool">Mark</span>: a yellow highlighter. <span class="tool">Pen</span>: a red or blue line. Both stay until you tap <span class="tool">Clear</span>.</p>
+  <p><span class="tool">Red / Blue</span> and <span class="tool">Thick</span> change the pen. <span class="tool">Erase</span> rubs out part of a line. <span class="tool">Undo</span> takes back the last stroke.</p>
+  <p><span class="tool">Finger</span>: lets fingers (or the mouse) draw too. While it is on, the page cannot be tapped.</p>
+  <p style="margin-bottom:0"><span class="tool">Hide</span>: puts the bar away. A small <i>Pointer</i> button stays to bring it back.</p>
+</div>
+<p>After you reload the page or open another site, tap the bookmark again.</p>
 
-<h2>Limits</h2>
+<h2>If it does not work</h2>
 <ul>
-  <li>Works only inside a web page: not on the home screen, in other apps, or in Safari's PDF viewer.</li>
-  <li>Sites that forbid outside scripts (a strict Content Security Policy) ignore the bookmark: GitHub, Wikipedia, YouTube, Google Docs and Slides, GeoGebra. For those, use the Chrome extension on a computer. News sites, Desmos, Khan Academy, Canvas LMS and Excalidraw accept it.</li>
-  <li>Inside an embedded video or calculator (an iframe) the pencil reaches the embed, not the overlay. The extension handles that; the bookmark does not.</li>
+  <li><b>Nothing happens on some sites.</b> A few sites refuse outside tools: GitHub, Wikipedia, YouTube, Google Docs and Slides, GeoGebra. For those, use the Chrome extension on a computer. News sites, Desmos, Khan Academy, Canvas and Excalidraw all work.</li>
+  <li><b>It only works on web pages.</b> Not on the home screen, in other apps, or on a PDF opened directly in Safari.</li>
+  <li><b>Inside an embedded video or calculator</b> the pencil reaches the embed, not the overlay. The extension handles that; the bookmark does not.</li>
 </ul>
 
 <footer>
-  <p>The script draws only in your browser and sends nothing anywhere. <a href="privacy.html">Privacy</a>.</p>
+  <p>Everything happens in your browser. Nothing you draw or look at is sent anywhere. <a href="privacy.html">Privacy</a>.</p>
+  <p>WebPen Presenter is made by Jose Mondragon and is free and open source under the MIT License.</p>
 </footer>
 
 <script src="bookmarklet.js"></script>

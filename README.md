@@ -87,3 +87,7 @@ Anything about touch, pinch zoom or Safari still needs a real iPad.
 
 `TRACKER.md` is the running log and the list of what is next. `store/listing.md` holds
 the Web Store text and screenshots.
+
+## Author and license
+
+Made by Jose Mondragon. Free and open source under the MIT License; see `LICENSE`.
