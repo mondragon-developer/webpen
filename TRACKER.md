@@ -16,6 +16,20 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-21 - README rewritten around a recorded demo
+
+- `tests/demo.js` drives the extension on the Wikipedia normal distribution article
+  and saves a PNG per step (laser hover and a "12" note that fades, a highlight, a red
+  circle, a thick blue wave, an erase and its undo, a scroll that shows marks anchored,
+  Clear, Hide), 90 frames with per-frame hold counts in `frames.json`. `scripts/gif.py`
+  scales them to 960 px, quantizes to one 128-color palette and writes `docs/demo.gif`
+  (909 KB). Both are documented in `tests/README.md` and the README itself.
+- `README.md` rewritten for a reader deciding whether to use it: the demo first, who it
+  is for, one line per tool, a table of where it works (iPad bookmark against the
+  extension, input, sites, embeds), a "Safe by design" section stating what it does not
+  do and the frame hardening in plain words, how to get it, a short developer section
+  with the embed snippet and the scripts, author and license.
+
 ### 2026-10-21 - Overlay made independent of the lessons site
 
 - Decided: WebPen is its own product and this repo is the only source of

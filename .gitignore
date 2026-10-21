@@ -5,3 +5,4 @@ site/
 .netlify/
 tests/node_modules/
 tests/profile-*/
+tests/demo-frames/

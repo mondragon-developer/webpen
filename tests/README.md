@@ -31,3 +31,6 @@ Scripts, run from `tests/`:
 Each run creates a `profile-*` folder next to the scripts and removes it on close; a
 crashed run may leave one behind, safe to delete. The page under test must stay in
 front: a hidden tab gets no animation frames and the overlay never repaints.
+- `node demo.js`: records the README demo on the Wikipedia normal distribution article,
+  one PNG per step into `tests/demo-frames/` (ignored by git); `python scripts/gif.py`
+  then assembles `docs/demo.gif`.
