@@ -1,19 +1,19 @@
 /* WebPen Presenter, by Jose Mondragon. MIT License.
-   Presenter overlay for live classes taught from a tablet.
-   Zoom shares pixels only, so a pencil hovering over a shared lesson is invisible to
-   students unless the page itself draws it. This script loads on every lesson and does
-   nothing for students. It shows a small "Pointer" chip when the page is opened with
-   ?present=1 (or #present), or when the engine's Session reports instructor walkthrough
-   or an instructor account; the chip opens a tool bar: Laser, Mark, Pen, Erase, Clear,
-   Finger, Hide.
+   Drawing overlay for teaching from a tablet over a screen share. Zoom shares pixels
+   only, so a pencil hovering over a shared page is invisible to the room unless the page
+   itself draws it. This script draws it: a small "Pointer" chip opens a tool bar with
+   Laser, Mark, Pen, Erase, Clear, Finger and Hide.
 
-   Drop-in: this file is self-contained (it injects its own styles, needs no library and
-   no other file). On another site add <script src="presenter.js"></script> and open the
-   page with ?present=1, or call Presenter.show() from the page's own instructor check.
-   The window.Session hook below is the only thing specific to these lessons and is
-   ignored when absent. The canvas and the bar live in a shadow root on one host element
-   appended to <html>, so the page's own CSS (global button rules, body transforms) cannot
-   reach them; Z_INDEX is the only knob a host page may need to lower.
+   Carriers: the browser extension and the bookmarklet call Presenter.show(). A site can
+   also embed the file itself with <script src="presenter.js"></script>; it then shows
+   the chip when the page is opened with ?present=1 (or #present), or when the site calls
+   Presenter.show() or Presenter.enable() from its own instructor check. The file is
+   self-contained (it injects its own styles, needs no library and no other file) and
+   knows nothing about any host page. The canvas and the bar live in a shadow root on one
+   host element appended to <html>, so the page's own CSS (global button rules, body
+   transforms) cannot reach them. The host element's z-index is the only knob a site may
+   need: a data-z-index attribute on the script tag lowers it below the site's own
+   overlays.
 
    Frames rule: when this file runs inside an iframe (a carrier such as the extension can
    load it in every frame) it builds no UI. It captures the pen the same way and forwards
@@ -27,15 +27,15 @@
    page. Laser taps inside a frame are replayed by the frame itself.
 
    Input rule: a pen (Apple Pencil, pointerType "pen") is captured in every mode, so it
-   never scrolls or selects; fingers keep working the lesson underneath. In Mark and Pen
+   never scrolls or selects; fingers keep working the page underneath. In Mark and Pen
    modes the pen draws. In Laser mode a pen drag only moves the dot, and a quick tap
    (under TAP_MOVE px and TAP_TIME ms) is replayed as a click on whatever sits under it,
    so the instructor can point at a button and press it with the same pencil; sliders,
    scrolling and text selection stay with the finger. Pencil hover (iPadOS 16.4+) moves
    the laser without touching. A mouse moves the laser on hover but clicks through, so
    the overlay is usable from a computer too. "Finger" makes every input draw, for tablets without a pen;
-   while it is on, the lesson cannot be tapped. Settings persist for the tab, so moving
-   between lessons keeps the bar on.
+   while it is on, the page cannot be tapped. Settings persist for the tab, so moving
+   between pages of a site keeps the bar on.
 
    Geometry rule: everything is measured against the visual viewport, never the layout
    viewport. iPad Safari pins position: fixed boxes to the layout viewport, while a pinch
@@ -55,7 +55,7 @@
   if (window.Presenter) return;
 
   var STORE = "presenter";
-  var Z_INDEX = 2147483000; // the host element; the lessons copy keeps 5900 so its login gate stays on top
+  var Z_INDEX = zIndexFromTag(); // the host element; above everything unless the embedding site says otherwise
   var FRAME_MSG = "webpen-presenter"; // postMessage tag for frame to parent pointer forwarding
   var LASER_LIFE = 1200; // ms a hover trail point stays visible; long enough to survive Zoom's low frame rate
   var LASER_HOLD = 2000; // ms the laser notes stay after the last lift before they fade
@@ -69,7 +69,8 @@
      :host{all:initial} also stops inherited properties (font, color, text-transform) from
      leaking in. The canvas and the dock get size and translate from the script; inset: 0 or
      100vh would drift on iPad Safari after a pinch zoom or window resize. The bar sits
-     bottom-left because the lessons' proctor chip owns the bottom-right corner. */
+     bottom-left, away from the bottom-right corner where sites tend to put chat and
+     help widgets. */
   var STYLES = [
     ":host{all:initial;position:fixed;left:0;top:0;width:0;height:0;overflow:visible;display:block;",
     "z-index:" + Z_INDEX + "}",
@@ -122,7 +123,6 @@
   try { inFrame = window.top !== window; } catch (e) { inFrame = true; }
   var frameTag = Math.random().toString(36).slice(2, 8); // keeps pointer ids from different frames apart at the top
   var changeListeners = [];
-  var sessionPoll = 0;
   /* Only the carrier's own channel hands this token to frames (a page never sees extension
      messages), so a message without it comes from the page, not from this script. A
      bookmarklet has no such channel, gives out no token, and so ignores every message. */
@@ -167,9 +167,11 @@
     return /[?&]present=1(&|$)/.test(location.search) || location.hash === "#present";
   }
 
-  function sessionFlag() {
-    var s = window.Session;
-    return !!(s && typeof s === "object" && (s.walkthrough || s.instructor));
+  // A content script has no currentScript, so a carrier always gets the default.
+  function zIndexFromTag() {
+    var tag = document.currentScript;
+    var v = tag ? Number(tag.getAttribute("data-z-index")) : 0;
+    return v > 0 ? Math.floor(v) : 2147483000;
   }
 
   /* ---- UI ---- */
@@ -221,7 +223,7 @@
     colorButton.appendChild(colorLabel);
     thickButton = button("Thick", "Thicker pen and highlighter", function () { setThick(!state.thick); });
     modeButtons.erase = button("Erase", "Rub out part of a mark or line", function () { setMode("erase"); });
-    fingerButton = button("Finger", "Draw with fingers too (the lesson cannot be tapped while on)", function () {
+    fingerButton = button("Finger", "Draw with fingers too (the page cannot be tapped while on)", function () {
       setAllInput(!state.allInput);
     });
     bar.appendChild(modeButtons.laser);
@@ -384,7 +386,7 @@
       (e.pointerType === "pen" || e.pointerType === "mouse");
   }
 
-  /* The pen never reaches the lesson, so a Laser-mode tap is replayed as a click on the
+  /* The pen never reaches the page, so a Laser-mode tap is replayed as a click on the
      element under it. The canvas has pointer-events: none here, so elementFromPoint skips
      it. Only click and focus are replayed: that works for buttons, links, checkboxes,
      radios and text fields, not for sliders or selects, which keep needing a finger. A tap
@@ -795,7 +797,6 @@
   /* ---- Activation ---- */
 
   function enable() {
-    if (sessionPoll) { clearInterval(sessionPoll); sessionPoll = 0; }
     if (allowed && canvas) return;
     allowed = true;
     try { sessionStorage.setItem(STORE + ":allowed", "1"); } catch (e) {}
@@ -804,16 +805,7 @@
 
   function init() {
     if (inFrame) { state.on = false; bindFrame(); return; }
-    if (allowed || urlFlag()) { enable(); return; }
-    if (sessionFlag()) { enable(); return; }
-    // Only a page that loads this file with its own script tag can define Session later. An
-    // extension content script has no currentScript and would otherwise poll every page.
-    if (!document.currentScript) return;
-    var tries = 0;
-    sessionPoll = setInterval(function () {
-      if (sessionFlag()) enable();
-      else if (++tries > 7200) { clearInterval(sessionPoll); sessionPoll = 0; }
-    }, 1000);
+    if (allowed || urlFlag()) enable();
   }
 
   /* set() takes any of mode, color, thick, allInput, for a carrier's own buttons (the

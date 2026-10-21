@@ -25,7 +25,7 @@ Scripts, run from `tests/`:
   toggle command, the note on a browser page.
 - `node bookmarklet.js`: the bookmark code from the served page on BBC, Wikipedia and
   GitHub, with `src/presenter.js` answered for the hosted URL; `HOSTED=1` uses the real
-  hosted file, `LESSON=1` adds a lesson page from the lessons repo served on 8767.
+  hosted file.
 - `node shots.js`: the two store screenshots into `store/`.
 
 Each run creates a `profile-*` folder next to the scripts and removes it on close; a

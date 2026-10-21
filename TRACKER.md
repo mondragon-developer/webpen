@@ -16,6 +16,31 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-21 - Overlay made independent of the lessons site
+
+- Decided: WebPen is its own product and this repo is the only source of
+  `presenter.js`. The lessons site (see Conventions) now embeds the file unchanged.
+- `src/presenter.js`: the `window.Session` hook and its one-second poll are gone; the
+  header comment, the Finger tooltip and the tap-through note no longer talk about
+  lessons. `Z_INDEX` comes from a `data-z-index` attribute on the embedding script tag
+  (`zIndexFromTag()`, default 2147483000; a content script has no currentScript and
+  always gets the default). Activation is now only `?present=1`/`#present`,
+  `Presenter.show()` or `Presenter.enable()`.
+- `README.md`, `CLAUDE.md`, `store/listing.md`, `tests/README.md` and
+  `tests/bookmarklet.js` (the `LESSON=1` option) no longer mention the lessons site.
+- Lessons repo: `public/shared/presenter.js` is now byte-identical to `src/`; the
+  Session poll moved to a new `public/shared/presenter-instructor.js`, and the 12 lesson
+  pages load `presenter.js` with `data-z-index="5900"` followed by the instructor
+  script (CRLF kept). Checked with Playwright on lesson 3 served locally: the host gets
+  z-index 5900, and setting `Session.instructor` opens the chip within two seconds, no
+  page errors. Committed there, not pushed, not deployed.
+- Extension suite re-run after the change: 73 pass, 0 fail. Hosted file redeployed
+  (`netlify deploy --prod`) and the store zip rebuilt with `scripts/pack.py`.
+- Checked whether "WebPen" is a known brand: three web searches (trademark, Chrome
+  extensions, stylus products) found no product, company or registered mark by that
+  name; a USPTO search at tmsearch.uspto.gov and a search of the Chrome Web Store itself
+  are the two checks worth doing by hand before publishing.
+
 ### 2026-10-21 - Store package built and checked
 
 - `scripts/pack.py` writes `webpen-presenter-0.2.0.zip` (ignored by git) with the
@@ -255,8 +280,10 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 - [ ] Load `extension/` unpacked in a real Chrome profile once: confirm the icon, the
       popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.
       Then upload `webpen-presenter-0.2.0.zip` with the text in `store/listing.md`.
-- [ ] Deploy the lessons site with its updated copy of `presenter.js` after a check on
-      one lesson from the iPad.
+- [ ] Deploy the lessons site with its updated copy of `presenter.js` and the new
+      `presenter-instructor.js` after a check on one lesson from the iPad.
+- [ ] Before publishing, search "WebPen" at tmsearch.uspto.gov and in the Chrome Web
+      Store once by hand.
 - [ ] iPad checks listed under the 2026-10-20 entry above.
 - [ ] Later: Safari Web Extension wrapper (Xcode) so the iPad gets a real toggle
       without a bookmark.
@@ -267,3 +294,8 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 - Log every session here in the same commit.
 - Test with a local static server and synthetic "pen" pointer events plus canvas pixel
   reads; anything about touch, pinch zoom or Safari needs the real iPad.
+- Downstream copies of `src/presenter.js`, to receive the file unchanged after a
+  change here, each with its own deploy: the Statistics Lessons site
+  (`../Statistics-Activities-Netlify/public/shared/presenter.js`, loaded with
+  `data-z-index="5900"` and followed by its own `presenter-instructor.js`). This list is
+  the only place in the repo that names them.

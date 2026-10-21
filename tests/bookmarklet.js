@@ -26,9 +26,6 @@ const T = require("./tests");
     ["bbc", "https://www.bbc.com/news"],
     ["github", "https://github.com/"],
   ];
-  // A lesson page from the sibling lessons repo, served on 8767 with its own copy of the
-  // script, when LESSON=1.
-  if (process.env.LESSON) sites.push(["lesson", "http://127.0.0.1:8767/lessons/3-describing-data-activity/index.html"]);
   for (const [name, url] of sites) {
     const errors = [];
     const onErr = (e) => errors.push(e.message.slice(0, 100));

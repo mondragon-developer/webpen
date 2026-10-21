@@ -91,5 +91,4 @@ backslashes and the store then cannot find the icons.
 4. Submit for review. Installed copies update on their own once it is approved.
 
 The bookmark needs no store: `netlify deploy --prod` after `sync.py` and every bookmark
-loads the new file on its next tap. The lessons site keeps its own copy and deploys
-separately.
+loads the new file on its next tap.

@@ -50,7 +50,8 @@ iframes: a pencil over an embedded video or calculator still draws on top.
 
 The whole overlay is `src/presenter.js`, one file with no dependencies. Drop it on any
 site with a script tag and open the page with `?present=1`, or call `Presenter.show()`
-from your own instructor check. The Statistics Lessons site runs it that way.
+from your own instructor check. If the site has overlays of its own that must stay on
+top, give the script tag a `data-z-index` attribute.
 
 A few things it gets right that took real iPads to learn:
 
