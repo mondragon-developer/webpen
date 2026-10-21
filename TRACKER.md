@@ -16,6 +16,19 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-21 - Store package built and checked
+
+- `scripts/pack.py` writes `webpen-presenter-0.2.0.zip` (ignored by git) with the
+  extension files at the top level and forward slashes in the entry names; a first
+  attempt with PowerShell's Compress-Archive stored `icons\icon128.png`, which the Web
+  Store would not resolve. Checked: the zip's presenter.js is byte-identical to `src/`,
+  the manifest carries `scripting` and `<all_urls>` only, icon 128x128, screenshots
+  1280x800, summary 119 characters, privacy URL answers 200, and no `innerHTML`, `eval`,
+  `fetch` or `http://` anywhere in the extension files.
+- Decided: no subresource integrity for the bookmark; 2FA on Netlify and GitHub is the
+  protection. Decided: this repo is the source of `presenter.js`, the lessons site
+  receives a copy on each change.
+
 ### 2026-10-21 - Deployed; setup page rewritten for non-technical readers; author and MIT license
 
 - `netlify deploy --prod` from `site/` (deploy 6ad8d99cd17160cf0bc8171d). Checked live
@@ -239,13 +252,11 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 ## Next Steps
 
 - [ ] Confirm the bookmark loads from the new host on the iPad.
-- [ ] Decide the single source of truth for `presenter.js`: either the lessons site
-      copies from here on each release, or this repo pulls from the lessons site.
 - [ ] Load `extension/` unpacked in a real Chrome profile once: confirm the icon, the
       popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.
-      Then zip `extension/` and submit with `store/listing.md` (needs the privacy page
-      deployed first).
-- [ ] Decide on subresource integrity for the bookmark (see the 2026-10-21 entry).
+      Then upload `webpen-presenter-0.2.0.zip` with the text in `store/listing.md`.
+- [ ] Deploy the lessons site with its updated copy of `presenter.js` after a check on
+      one lesson from the iPad.
 - [ ] iPad checks listed under the 2026-10-20 entry above.
 - [ ] Later: Safari Web Extension wrapper (Xcode) so the iPad gets a real toggle
       without a bookmark.

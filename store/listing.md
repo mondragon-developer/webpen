@@ -75,6 +75,8 @@ Privacy policy URL: https://webpen-presenter.netlify.app/privacy.html
 
 ## Packaging
 
-Run `python scripts/sync.py`, then zip the contents of `extension/` (the files, not the
-folder): manifest.json, background.js, content.js, presenter.js, popup.html, popup.js,
-icons/. Upload the zip.
+Run `python scripts/sync.py`, then `python scripts/pack.py`, which writes
+`webpen-presenter-<version>.zip` in the repo root with the files at the top level
+(manifest.json, background.js, content.js, presenter.js, popup.html, popup.js, icons/).
+Upload that zip. Do not zip with PowerShell's Compress-Archive: its entry names carry
+backslashes and the store then cannot find the icons.
