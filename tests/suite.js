@@ -121,6 +121,30 @@ async function penInFrame(frame, x, y, id) {
   const inFrame = await penInFrame(same, 100, 100, 9);
   await L.settle(page, 150);
   log("frames: pen inside same-origin iframe draws laser on the top overlay", RED(await L.pixel(page, sameRect.x + 162, sameRect.y + 102)), { innerDowns: inFrame, msgs: await page.evaluate(() => window.msgs), painted: await scan(page) });
+
+  // A page's own iframe forging pen messages aimed above and left of its box: without the
+  // token nothing happens; with a token (a page can read its honest frames' messages) the
+  // point is clamped to the frame's corner and a tap is never replayed, so the button
+  // outside the frame stays unclicked.
+  const btn = await page.evaluate(() => { const r = document.getElementById("topbtn").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  const forge = (token) => same.evaluate(({ token, x, y }) => {
+    const base = { webpen: "webpen-presenter", token, pointerType: "pen", pointerId: 99, tag: "evil", x, y };
+    parent.postMessage(Object.assign({ type: "pointerdown", buttons: 1 }, base), "*");
+    parent.postMessage(Object.assign({ type: "pointerup", buttons: 0 }, base), "*");
+  }, { token, x: -40, y: btn.y - sameRect.y });
+  await forge(undefined);
+  await L.settle(page, 150);
+  const clicks1 = await page.evaluate(() => window.topClicks || 0);
+  log("frames: forged message without the token draws nothing and clicks nothing", clicks1 === 0 && CLEAR(await L.pixel(page, btn.x, btn.y)) && CLEAR(await L.pixel(page, sameRect.x + 3, sameRect.y + 3)), { clicks: clicks1 });
+  const token = await sw.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const s = await chrome.tabs.sendMessage(tab.id, { type: "webpen-state?" }, { frameId: 0 });
+    return s && s.token;
+  });
+  await forge(token);
+  await L.settle(page, 150);
+  const clicks2 = await page.evaluate(() => window.topClicks || 0);
+  log("frames: forged message with the token is clamped to the frame's box and replays no tap", typeof token === "string" && clicks2 === 0 && CLEAR(await L.pixel(page, btn.x, btn.y)) && RED(await L.pixel(page, sameRect.x + 3, sameRect.y + 3)), { clicks: clicks2, tokenLength: token && token.length });
   const crossRect = await page.evaluate(() => { const r = document.getElementById("cross").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
   const cross = page.frames().find((f) => f.url().includes("youtube.com"));
   if (cross) {

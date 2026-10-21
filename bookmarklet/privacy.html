@@ -13,9 +13,9 @@
 <p>WebPen Presenter, as a bookmark or as a browser extension, draws on top of the page you are looking at. That is all it does.</p>
 <ul>
   <li>It collects no personal data, no browsing history and no page content.</li>
-  <li>It sends nothing to any server. The bookmark downloads the script from this site and the script then runs entirely in your browser; the extension ships the script inside the package and downloads nothing.</li>
+  <li>The script itself sends nothing to any server. The bookmark downloads it from this site each time you tap it, and that download, like any web request, shows this site's host (Netlify) your IP address and, depending on the page's own referrer policy, the address of the page you tapped it on. Nothing is stored or looked at. The extension ships the script inside the package and downloads nothing.</li>
   <li>Your tool settings (laser or pen, color, thickness) are kept in the browser tab's session storage so they survive a reload, and vanish when the tab closes.</li>
-  <li>The extension asks to run on all sites because you choose, at presentation time, which site to draw over. It does nothing visible on a page until you press its toolbar button or keyboard shortcut.</li>
+  <li>The extension asks to run on all sites because you choose, at presentation time, which site to draw over, and because embedded frames must forward the pen to the page around them. Its script is present on every page but builds nothing, reads nothing and draws nothing until you press its toolbar button or keyboard shortcut.</li>
 </ul>
 <p><a href="./">Back to the bookmarklet page</a></p>
 </body>

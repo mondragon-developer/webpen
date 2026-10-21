@@ -11,6 +11,7 @@ print("extension/presenter.js updated")
 site = root / "site"
 site.mkdir(exist_ok=True)
 shutil.copyfile(src, site / "presenter.js")
-for page in (root / "bookmarklet").glob("*.html"):
-    shutil.copyfile(page, site / page.name)
+for page in (root / "bookmarklet").iterdir():
+    if page.suffix in (".html", ".js"):
+        shutil.copyfile(page, site / page.name)
 print("site/ assembled: " + ", ".join(sorted(p.name for p in site.iterdir())))

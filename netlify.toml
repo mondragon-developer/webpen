@@ -11,8 +11,13 @@
     Access-Control-Allow-Origin = "*"
     X-Content-Type-Options = "nosniff"
 
+# The pages carry no inline script (bookmarklet.js is a file) so the CSP can stay strict;
+# the inline <style> blocks are why style-src allows them.
 [[headers]]
   for = "/*"
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"

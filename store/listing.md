@@ -50,12 +50,14 @@ for screen sharing.
 
 Permission justifications:
 
-- activeTab: run on the tab where the toolbar button or shortcut was used.
+- Host permission (all sites): the overlay is a content script on every page and in
+  every frame. The instructor picks the site to draw over at presentation time, and
+  embedded videos and calculators (iframes) have to forward the pen to the page around
+  them, which only works when the script is already in each frame when it loads. The
+  script builds nothing and reads nothing until the toolbar button or the shortcut is
+  pressed; it never touches page content.
 - scripting: inject the overlay into a tab that was open before the extension was
-  installed, when the button is pressed there.
-- Host permission (all sites): the instructor picks the site to draw over at
-  presentation time, so the overlay has to be available on any page. It draws nothing
-  until the button or shortcut is pressed.
+  installed, or whose scripts have not finished loading, when the button is pressed there.
 - No remote code: the overlay script ships inside the package.
 
 Data usage: the extension does not collect or transmit any user data. Tool settings

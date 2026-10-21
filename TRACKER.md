@@ -16,6 +16,58 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-21 - Security review: frame messages hardened, permissions and listing aligned, site headers
+
+- Review of the overlay, the extension, the bookmarklet page and the Netlify config. One
+  finding mattered: the top frame accepted any `postMessage` tagged `webpen-presenter`
+  from any iframe in the page, passed its coordinates through unclamped, and in Laser
+  mode replayed the tap with `elementFromPoint().click()`. An ad or embed could click any
+  element of the page around it while the bar was on, across origins. Same listener in
+  the bookmarklet.
+- `src/presenter.js`: the top frame makes a random token (`crypto.getRandomValues`) and
+  ships it in `Presenter.state()`, so it reaches frames only over the carrier's own
+  channel (`webpen-state`), which pages cannot read; a frame echoes it in every message
+  and the top frame drops messages without it. The bookmarklet gives out no token, so it
+  ignores every message (the page could still read it from `Presenter.state()` there,
+  which only buys it what the next two rules allow). Each message is rebuilt field by
+  field: type whitelisted, coordinates finite and clamped to the sender's box, at most
+  `MAX_REMOTE_POINTS` (64) coalesced points, pointerType whitelisted. A remote event
+  carries `remote: true` and never sets a tap, so a frame can at most draw inside its
+  own area. Also: the `window.Session` poll (1 s for two hours) now runs only when the
+  file is loaded by a page's script tag (`document.currentScript`), never as a content
+  script, and `enable()` clears it; the bookmarklet's `Presenter.show()` does that.
+- `extension/background.js`: `webpen-state` accepted from frame 0 only, `webpen-popup`
+  only from an extension page (`sender.url` under `chrome.runtime.getURL("")`, which
+  keeps the test's popup-as-tab working). Not reachable from pages before either, no
+  `externally_connectable`; defense in depth.
+- `manifest.json`: `activeTab` dropped, it was redundant next to `<all_urls>` host
+  permission plus content scripts on every page, and `store/listing.md` justified it as
+  if the overlay were injected on demand. The listing and `privacy.html` now say what
+  ships: a content script on every page and frame, inert until the button or shortcut,
+  needed so frames forward the pen; `scripting` re-injects tabs open before install.
+  The privacy page also says that the bookmark's download shows Netlify the IP and,
+  subject to the page's referrer policy, the page address.
+- `netlify.toml`: HSTS, `X-Frame-Options: DENY`, and a CSP (`default-src 'none'`,
+  scripts from self, inline styles allowed). For that the bookmarklet page's inline
+  script moved to `bookmarklet/bookmarklet.js`; `sync.py` copies `.js` from
+  `bookmarklet/` too and `tests/bookmarklet.js` reads `SCRIPT_URL` from the window.
+- Tests: `tests/pages/frames.html` has a top-level button with a click counter and
+  `suite.js` forges two messages from the same-origin iframe aimed above its box: without
+  the token nothing paints and nothing is clicked; with the token (read through the
+  service worker) the dot lands on the frame's corner, the button pixel stays clear and
+  the counter stays 0. Suite: 73 pass, 0 fail. `popup.js`: 12 pass, the shortcut check
+  fails as before (no key in the test profile). `bookmarklet.js`: BBC passes, Wikipedia
+  and GitHub blocked by CSP as before.
+- Ported to the lessons copy (`../Statistics-Activities-Netlify/public/shared/presenter.js`,
+  Z_INDEX 5900) together with `Presenter.set`, so the two files differ only in that line.
+  Logged in its tracker. The lessons load the file with a script tag, so their
+  `Session` poll keeps working.
+- Not deployed: `site/` needs `netlify deploy --prod` for the hosted file, the headers
+  and the privacy page. Not decided: subresource integrity for the bookmark
+  (`s.integrity`, CORS header already allows it) would pin the hosted file but force a
+  new bookmark on every release. Keep 2FA on the Netlify and GitHub accounts; the
+  bookmark is a standing trust in that host.
+
 ### 2026-10-20 - Netlify site created and deployed
 
 - `netlify sites:create --name webpen-presenter` (team mondradev's team, project id
@@ -173,7 +225,10 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
       popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.
       Then zip `extension/` and submit with `store/listing.md` (needs the privacy page
       deployed first).
-- [ ] Port `Presenter.set` to the lessons copy on its next sync.
+- [ ] Deploy the hardened file and the new headers: `python scripts/sync.py` then
+      `netlify deploy --prod`; open the bookmarklet page and check the console for CSP
+      reports.
+- [ ] Decide on subresource integrity for the bookmark (see the 2026-10-21 entry).
 - [ ] iPad checks listed under the 2026-10-20 entry above.
 - [ ] Later: Safari Web Extension wrapper (Xcode) so the iPad gets a real toggle
       without a bookmark.

@@ -12,8 +12,8 @@ const T = require("./tests");
   const page = await ctx.newPage();
   await page.goto("http://127.0.0.1:8768/bookmarklet/index.html");
   let code = await page.evaluate(() => document.getElementById("code").value);
-  const hosted = /SCRIPT_URL = "([^"]+)"/.exec(await page.content());
-  console.log("bookmark code starts:", code.slice(0, 60), "| hosted url:", hosted && hosted[1]);
+  const hosted = await page.evaluate(() => window.SCRIPT_URL);
+  console.log("bookmark code starts:", code.slice(0, 60), "| hosted url:", hosted);
   T.log("bookmarklet page: code starts with javascript: and calls Presenter.show", code.startsWith("javascript:") && code.includes("Presenter.show()"));
   T.log("bookmarklet page: drag link carries the same code", (await page.evaluate(() => document.getElementById("drag").getAttribute("href"))) === code);
   // An https page refuses an http script (mixed content), so the local copy is only

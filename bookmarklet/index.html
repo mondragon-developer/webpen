@@ -56,19 +56,6 @@
   <p>The script draws only in your browser and sends nothing anywhere. <a href="privacy.html">Privacy</a>.</p>
 </footer>
 
-<script>
-  var SCRIPT_URL = "https://webpen-presenter.netlify.app/presenter.js";
-  var code = "javascript:(function(){if(window.Presenter){Presenter.show();return;}var s=document.createElement('script');s.src='" + SCRIPT_URL + "?v='+Date.now();s.onload=function(){Presenter.show();};document.head.appendChild(s);})();";
-  document.getElementById("code").value = code;
-  document.getElementById("drag").href = code;
-  document.getElementById("drag").addEventListener("click", function (e) { e.preventDefault(); });
-  document.getElementById("copy").addEventListener("click", function () {
-    var t = document.getElementById("code");
-    t.select();
-    var done = function () { document.getElementById("status").textContent = "Copied."; };
-    if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, function () { document.execCommand("copy"); done(); });
-    else { document.execCommand("copy"); done(); }
-  });
-</script>
+<script src="bookmarklet.js"></script>
 </body>
 </html>
