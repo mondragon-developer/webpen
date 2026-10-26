@@ -16,6 +16,15 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-26 - Product name written as one word: WebPenPresenter
+
+- Display name changed from "WebPen Presenter" (and the short "WebPen") to
+  "WebPenPresenter" in the manifest name and toolbar title, the popup, the setup and
+  privacy pages, the store listing, the README, CLAUDE.md and the header of
+  `src/presenter.js`. Identifiers stay as they were (`webpen-presenter` storage key,
+  message tag and `data-webpen-presenter` marker, the Netlify and GitHub URLs), and
+  older entries in this log keep the old spelling. Store zip rebuilt.
+
 ### 2026-10-26 - Final check fixes: pages can no longer switch the extension on
 
 - A whole-repo final check found that the extension's copy took its state from the

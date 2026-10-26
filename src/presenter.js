@@ -1,4 +1,4 @@
-/* WebPen Presenter, by Jose Mondragon. MIT License.
+/* WebPenPresenter, by Jose Mondragon. MIT License.
    Drawing overlay for teaching from a tablet over a screen share. Zoom shares pixels
    only, so a pencil hovering over a shared page is invisible to the room unless the page
    itself draws it. This script draws it: a small "Pointer" chip opens a tool bar with

@@ -1,18 +1,18 @@
-# WebPen Presenter
+# WebPenPresenter
 
 Point, highlight and write on any web page while you share your screen. A laser
 pointer that remembers what you just wrote, a highlighter, a pen and an eraser, drawn
 on top of the site you are teaching from. Nothing to install on the students' side,
 nothing sent anywhere.
 
-![WebPen Presenter on a Wikipedia article: laser note, highlighter, pen, eraser, undo, scroll, clear](docs/demo.gif)
+![WebPenPresenter on a Wikipedia article: laser note, highlighter, pen, eraser, undo, scroll, clear](docs/demo.gif)
 
 ## Who it is for
 
 Anyone who teaches or presents from a browser: a textbook site, an online calculator,
 a news article, a learning platform, a slide deck in the browser. Screen sharing shows
 pixels, so a pencil or a mouse hovering over a page is invisible to the room unless the
-page itself draws it. WebPen draws it.
+page itself draws it. WebPenPresenter draws it.
 
 It was made for an instructor on an iPad with an Apple Pencil teaching over Zoom, and
 it works just as well on a computer with a mouse, in Chrome or Edge.

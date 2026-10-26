@@ -1,4 +1,4 @@
-# WebPen Presenter - working notes for assistants
+# WebPenPresenter - working notes for assistants
 
 - Read TRACKER.md first; it is the source of truth for state and next steps. Log every
   session there in the same commit as the work.

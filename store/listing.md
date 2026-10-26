@@ -5,7 +5,7 @@ them. Edge Add-ons takes the same text.
 
 ## Product details
 
-Name: WebPen Presenter
+Name: WebPenPresenter
 
 Summary (132 characters max):
 
@@ -13,7 +13,7 @@ Laser pointer, highlighter, pen and fading quick notes over any web page, so a s
 
 Description:
 
-WebPen Presenter puts a small tool bar on any web page and lets you draw over it while
+WebPenPresenter puts a small tool bar on any web page and lets you draw over it while
 you share your screen on Zoom, Teams or a projector. It is made for instructors who
 teach from a browser: a textbook site, a calculator, a slide deck, a news article.
 
