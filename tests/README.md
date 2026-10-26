@@ -19,18 +19,21 @@ Static servers the scripts expect (start each in its own terminal):
 Scripts, run from `tests/`:
 
 - `node suite.js`: the extension on the local pages (sticky header, hostile button CSS,
-  page pointer listeners, transformed body, same-origin and YouTube iframes, early
-  second injection) and on Wikipedia, MDN, Excalidraw, GeoGebra, BBC.
+  page pointer listeners, transformed body, same-origin, scaled and YouTube iframes,
+  early second injection, settings kept across a reload, a page that tries to switch
+  the overlay on through its storage and URL, a page that embeds its own copy) and on
+  Wikipedia, MDN, Excalidraw, GeoGebra, BBC.
 - `node popup.js`: the popup opened as a page aimed at the test tab, every button, the
   toggle command, the note on a browser page.
 - `node bookmarklet.js`: the bookmark code from the served page on BBC, Wikipedia and
   GitHub, with `src/presenter.js` answered for the hosted URL; `HOSTED=1` uses the real
   hosted file.
-- `node shots.js`: the two store screenshots into `store/`.
+- `node shots.js`: `store/screenshot-1.png` and `store/popup.png`; `screenshot-2.png`
+  is screenshot-1 with the popup pasted on by hand.
 
-Each run creates a `profile-*` folder next to the scripts and removes it on close; a
-crashed run may leave one behind, safe to delete. The page under test must stay in
-front: a hidden tab gets no animation frames and the overlay never repaints.
+Each run uses a temporary browser profile that Playwright deletes on close. The page
+under test must stay in front: a hidden tab gets no animation frames and the overlay
+never repaints.
 - `node demo.js`: records the README demo on the Wikipedia normal distribution article,
   one PNG per step into `tests/demo-frames/` (ignored by git); `python scripts/gif.py`
   then assembles `docs/demo.gif`.

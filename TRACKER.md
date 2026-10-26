@@ -16,6 +16,40 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-26 - Final check fixes: pages can no longer switch the extension on
+
+- A whole-repo final check found that the extension's copy took its state from the
+  page's own sessionStorage and from `?present=1`, both written by the page, so any page
+  could build the overlay already on, hide the bar with CSS and read the mouse and pen
+  points its cross-origin embeds forwarded. `src/presenter.js` now tells a page's own
+  copy (script tag or bookmark, which have a `currentScript`) from the extension's
+  (none): only the former reads or writes sessionStorage or honors `?present=1`. The
+  extension keeps the top frame's last state in `chrome.storage.session`, keyed by tab
+  and origin (the scope sessionStorage had), cleared on tab close; `content.js` asks for
+  it before its first report and restores it. New permission: `storage`, justified in
+  `store/listing.md`; README, privacy page and listing text updated.
+- Two copies on one page (a site that embeds the file, plus the extension) each built
+  an overlay, so one laser tap clicked twice. The first copy to build marks `<html>`
+  with `data-webpen-presenter`; the other stays unbuilt, its `show`/`toggle`/`set` do
+  nothing and its state says `yielded`, which the popup turns into a note.
+- Points from a CSS-scaled iframe are mapped through the scale (bounding box against
+  `offsetWidth`/`offsetHeight`) and clamped inside the visible box.
+- The frame token is made only by the extension's copy; the comment now says it filters
+  stray traffic and that clamping plus no remote taps is the boundary. sessionStorage
+  key renamed `presenter` to `webpen-presenter`. The setup page's copy button opens the
+  code box and reports when the fallback copy fails. `sync.py` rebuilds `site/` from
+  scratch. The rig uses a temporary profile Playwright deletes; `suite.js` reuses
+  `tests.js` instead of a copy of it; `shots.js` and `tests/README.md` say screenshot-2
+  is pasted together by hand; `tests/package-lock.json` committed.
+- New suite cases: settings back after a reload, a fresh tab whose page seeds the
+  storage keys and opens `?present=1#present` (no host, no frame messages), a page that
+  embeds its own copy (`tests/pages/embed.html`: one host at z 5900, the extension
+  yields, one tap is one click), a half-scale iframe. `node suite.js` 78 pass, 0 fail;
+  `node popup.js` 12 pass, 1 fail (the shortcut check, as before); `node bookmarklet.js`
+  BBC passes, Wikipedia and GitHub blocked by CSP as before. The setup page's copy
+  button checked with and without the clipboard API. Store zip rebuilt with
+  `scripts/pack.py`.
+
 ### 2026-10-21 - README rewritten around a recorded demo
 
 - `tests/demo.js` drives the extension on the Wikipedia normal distribution article
@@ -290,6 +324,8 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
+- [ ] Redeploy the hosted `presenter.js` (`netlify deploy --prod` from `site/`) and
+      copy `src/presenter.js` to the lessons site after the 2026-10-26 fixes.
 - [ ] Confirm the bookmark loads from the new host on the iPad.
 - [ ] Load `extension/` unpacked in a real Chrome profile once: confirm the icon, the
       popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.

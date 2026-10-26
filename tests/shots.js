@@ -3,8 +3,9 @@ const T = require("./tests");
 const path = require("path");
 const OUT = path.join(__dirname, "..", "store") + "/";
 
-// Store screenshots, 1280x800: a page with highlighter, pen and a laser note, and the
-// popup pasted over the page by scripts in the same folder.
+// Writes store/screenshot-1.png (1280x800: a page with highlighter, pen and a laser note)
+// and store/popup.png. screenshot-2.png is screenshot-1 with popup.png pasted on by hand
+// in an image editor; no script here builds it.
 (async () => {
   const { ctx, sw } = await L.launch();
   const page = await ctx.newPage();

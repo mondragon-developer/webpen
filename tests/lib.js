@@ -3,9 +3,8 @@ const path = require("path");
 const EXT = path.join(__dirname, "..", "extension");
 
 async function launch(opts = {}) {
-  const userDir = path.join(__dirname, "profile-" + Date.now());
-  const ctx = await chromium.launchPersistentContext(userDir, {
-    
+  // An empty path makes Playwright create a temporary profile and delete it on close.
+  const ctx = await chromium.launchPersistentContext("", {
     headless: opts.headless !== false, channel: opts.channel || "chromium",
     viewport: { width: 1200, height: 800 },
     args: ["--disable-extensions-except=" + EXT, "--load-extension=" + EXT, "--no-first-run"],

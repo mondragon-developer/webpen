@@ -33,10 +33,31 @@ function fromExtensionPage(sender) {
   return typeof sender.url === "string" && sender.url.indexOf(chrome.runtime.getURL("")) === 0;
 }
 
+// The top frame's last state is kept per tab and origin, the same scope sessionStorage
+// had, so the bar stays on from page to page of a site. storage.session is out of reach
+// of content scripts by default and is emptied when the browser closes.
+function savedKey(sender) {
+  let origin = sender.origin;
+  if (!origin) try { origin = new URL(sender.url).origin; } catch (e) { origin = ""; }
+  return "tab" + sender.tab.id + " " + origin;
+}
+
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const prefix = "tab" + tabId + " ";
+  const all = await chrome.storage.session.get(null);
+  const keys = Object.keys(all).filter((k) => k.startsWith(prefix));
+  if (keys.length) await chrome.storage.session.remove(keys);
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (!msg) return;
   if (msg.type === "webpen-state" && sender.tab && sender.frameId === 0) {
     chrome.tabs.sendMessage(sender.tab.id, { type: "webpen-state", state: msg.state }).catch(() => {});
+    chrome.storage.session.set({ [savedKey(sender)]: msg.state }).catch(() => {});
+  } else if (msg.type === "webpen-saved?" && sender.tab && sender.frameId === 0) {
+    const key = savedKey(sender);
+    chrome.storage.session.get(key).then((r) => reply(r[key] || null), () => reply(null));
+    return true;
   } else if (msg.type === "webpen-state?" && sender.tab) {
     chrome.tabs.sendMessage(sender.tab.id, { type: "webpen-state?" }, { frameId: 0 }).then(reply, () => reply(null));
     return true;

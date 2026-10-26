@@ -7,7 +7,11 @@
    Carriers: the browser extension and the bookmarklet call Presenter.show(). A site can
    also embed the file itself with <script src="presenter.js"></script>; it then shows
    the chip when the page is opened with ?present=1 (or #present), or when the site calls
-   Presenter.show() or Presenter.enable() from its own instructor check. The file is
+   Presenter.show() or Presenter.enable() from its own instructor check. The extension's
+   copy shares the page's URL and sessionStorage, both written by the page, so it ignores
+   them and gets its tab settings back from the extension instead; otherwise any page
+   could switch it on. One copy per document: when the page's own copy and the
+   extension's both run, whichever builds first keeps the page. The file is
    self-contained (it injects its own styles, needs no library and no other file) and
    knows nothing about any host page. The canvas and the bar live in a shadow root on one
    host element appended to <html>, so the page's own CSS (global button rules, body
@@ -21,10 +25,11 @@
    box and either draws them (top frame) or forwards again. The frame learns whether the
    presenter is on through Presenter.frameState(), which the carrier feeds from the top
    frame over its own channel, never from postMessage, so a page cannot switch the capture
-   on by itself. That state also carries a token the frame echoes in every message; the top
-   frame drops messages without it, clamps every point to the sender's box and never
-   replays a remote tap, so a hostile iframe can neither draw outside itself nor click the
-   page. Laser taps inside a frame are replayed by the frame itself.
+   on by itself. That state also carries a token the frame echoes in every message, which
+   drops stray traffic but is no secret from the page, since a page sees every message its
+   frames post. The boundary is that the top frame clamps every point to the sender's box
+   and never replays a remote tap, so a hostile iframe can neither draw outside itself nor
+   click the page. Laser taps inside a frame are replayed by the frame itself.
 
    Input rule: a pen (Apple Pencil, pointerType "pen") is captured in every mode, so it
    never scrolls or selects; fingers keep working the page underneath. In Mark and Pen
@@ -34,7 +39,8 @@
    scrolling and text selection stay with the finger. Pencil hover (iPadOS 16.4+) moves
    the laser without touching. A mouse moves the laser on hover but clicks through, so
    the overlay is usable from a computer too. "Finger" makes every input draw, for tablets without a pen;
-   while it is on, the page cannot be tapped. Settings persist for the tab, so moving
+   while it is on, the page cannot be tapped. Settings persist for the tab (sessionStorage
+   for a page's own copy, the extension's session storage for the extension's), so moving
    between pages of a site keeps the bar on.
 
    Geometry rule: everything is measured against the visual viewport, never the layout
@@ -54,7 +60,10 @@
 (function () {
   if (window.Presenter) return;
 
-  var STORE = "presenter";
+  // A script tag or a bookmark has a currentScript; the extension's content script does not.
+  var embedded = !!document.currentScript;
+  var STORE = "webpen-presenter";
+  var OWNER = "data-webpen-presenter"; // on <html>, the one thing both JS worlds can see
   var Z_INDEX = zIndexFromTag(); // the host element; above everything unless the embedding site says otherwise
   var FRAME_MSG = "webpen-presenter"; // postMessage tag for frame to parent pointer forwarding
   var LASER_LIFE = 1200; // ms a hover trail point stays visible; long enough to survive Zoom's low frame rate
@@ -123,10 +132,10 @@
   try { inFrame = window.top !== window; } catch (e) { inFrame = true; }
   var frameTag = Math.random().toString(36).slice(2, 8); // keeps pointer ids from different frames apart at the top
   var changeListeners = [];
-  /* Only the carrier's own channel hands this token to frames (a page never sees extension
-     messages), so a message without it comes from the page, not from this script. A
-     bookmarklet has no such channel, gives out no token, and so ignores every message. */
-  var frameToken = inFrame ? null : makeToken();
+  /* Only the extension's own channel hands this token to frames, so a message without it
+     is stray traffic. A copy the page loaded itself has no such channel, makes no token and
+     ignores every frame message, which also keeps the token out of Presenter.state() there. */
+  var frameToken = inFrame || embedded ? null : makeToken();
 
   function makeToken() {
     var bytes = new Uint8Array(16);
@@ -138,7 +147,7 @@
     return s;
   }
 
-  try {
+  if (embedded) try {
     var saved = JSON.parse(sessionStorage.getItem(STORE) || "null");
     if (saved && typeof saved === "object") {
       state.on = !!saved.on;
@@ -151,14 +160,16 @@
   } catch (e) {}
 
   function persist() {
-    try { sessionStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+    if (embedded) try { sessionStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
     for (var i = 0; i < changeListeners.length; i++) {
       try { changeListeners[i](snapshot()); } catch (e) {}
     }
   }
 
   function snapshot() {
-    var s = { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick };
+    var s = { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick,
+              enabled: !!canvas };
+    if (!canvas && !inFrame && document.documentElement.hasAttribute(OWNER)) s.yielded = true;
     if (frameToken) s.token = frameToken;
     return s;
   }
@@ -639,13 +650,16 @@
       if (frames[i].contentWindow === ev.source) { frame = frames[i]; break; }
     }
     if (!frame) return;
+    // The bounding box includes a CSS transform on the iframe and the client sizes do not,
+    // so a scaled frame needs the ratio between them or its points land outside its box.
     var r = frame.getBoundingClientRect();
-    var dx = r.left + frame.clientLeft;
-    var dy = r.top + frame.clientTop;
+    var sx = r.width / (frame.offsetWidth || 1);
+    var sy = r.height / (frame.offsetHeight || 1);
     var w = Math.max(0, frame.clientWidth);
     var h = Math.max(0, frame.clientHeight);
     function map(p) {
-      return { x: Math.min(Math.max(p.x, 0), w) + dx, y: Math.min(Math.max(p.y, 0), h) + dy };
+      return { x: r.left + (frame.clientLeft + Math.min(Math.max(p.x, 0), w)) * sx,
+               y: r.top + (frame.clientTop + Math.min(Math.max(p.y, 0), h)) * sy };
     }
     var head = map(m);
     var out = { webpen: FRAME_MSG, token: frameToken, type: m.type,
@@ -796,33 +810,40 @@
 
   /* ---- Activation ---- */
 
+  /* The page's own copy and the extension's run in separate JS worlds, so window.Presenter
+     cannot tell them apart; two overlays would replay every laser tap twice. */
   function enable() {
-    if (allowed && canvas) return;
-    allowed = true;
-    try { sessionStorage.setItem(STORE + ":allowed", "1"); } catch (e) {}
-    if (!canvas) build();
+    if (!canvas) {
+      if (document.documentElement.hasAttribute(OWNER)) return false;
+      document.documentElement.setAttribute(OWNER, "");
+      build();
+    }
+    if (!allowed) {
+      allowed = true;
+      if (embedded) try { sessionStorage.setItem(STORE + ":allowed", "1"); } catch (e) {}
+    }
+    return true;
   }
 
   function init() {
     if (inFrame) { state.on = false; bindFrame(); return; }
-    if (allowed || urlFlag()) enable();
+    if (embedded && (allowed || urlFlag())) enable();
   }
 
   /* set() takes any of mode, color, thick, allInput, for a carrier's own buttons (the
      extension popup) so mouse users need not reach the bar on the page. */
   window.Presenter = {
     enable: enable,
-    show: function () { enable(); setOn(true); },
+    show: function () { if (enable()) setOn(true); },
     hide: function () { if (canvas) setOn(false); },
-    toggle: function () { if (canvas && state.on) setOn(false); else { enable(); setOn(true); } },
+    toggle: function () { if (canvas && state.on) setOn(false); else if (enable()) setOn(true); },
     shown: function () { return !!canvas && state.on; },
     clear: function () { if (canvas) clear(); },
     undo: function () { if (canvas) undo(); },
     viewport: function () { return vp; },
     state: snapshot,
     set: function (s) {
-      if (!s || typeof s !== "object") return;
-      enable();
+      if (!s || typeof s !== "object" || !enable()) return;
       if (/^(laser|mark|pen|erase)$/.test(s.mode)) setMode(s.mode);
       if (s.color === "red" || s.color === "blue") setColor(s.color);
       if (typeof s.thick === "boolean") setThick(s.thick);

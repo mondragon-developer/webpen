@@ -58,11 +58,14 @@ Permission justifications:
   pressed; it never touches page content.
 - scripting: inject the overlay into a tab that was open before the extension was
   installed, or whose scripts have not finished loading, when the button is pressed there.
+- storage: keep the bar's settings (shown or hidden, tool, color, thickness) for the
+  tab and site, so the bar stays on from page to page. Session storage only, emptied
+  when the browser closes, and out of reach of web pages.
 - No remote code: the overlay script ships inside the package.
 
 Data usage: the extension does not collect or transmit any user data. Tool settings
-(laser or pen, color, thickness) are kept in the tab's session storage and vanish when
-the tab closes.
+(shown or hidden, laser or pen, color, thickness) are kept in the extension's session
+storage per tab and site, cleared when the tab closes and when the browser closes.
 
 Privacy policy URL: https://webpen-presenter.netlify.app/privacy.html
 

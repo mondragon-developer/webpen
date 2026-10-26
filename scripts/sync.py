@@ -9,7 +9,9 @@ shutil.copyfile(src, root / "extension" / "presenter.js")
 print("extension/presenter.js updated")
 
 site = root / "site"
-site.mkdir(exist_ok=True)
+# site/ is generated whole, so a page removed from bookmarklet/ must not linger in the deploy.
+shutil.rmtree(site, ignore_errors=True)
+site.mkdir()
 shutil.copyfile(src, site / "presenter.js")
 for page in (root / "bookmarklet").iterdir():
     if page.suffix in (".html", ".js"):

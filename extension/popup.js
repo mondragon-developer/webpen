@@ -24,9 +24,10 @@
   }
 
   function paint(s) {
-    var blocked = !s;
+    var blocked = !s || !!s.yielded;
     document.querySelectorAll("button").forEach(function (b) { b.disabled = blocked; });
-    note.textContent = blocked ? "This page cannot be drawn on (browser pages, the Web Store, PDFs opened directly)." : "";
+    note.textContent = !s ? "This page cannot be drawn on (browser pages, the Web Store, PDFs opened directly)."
+      : s.yielded ? "This page runs its own copy of WebPen; use the bar on the page." : "";
     if (blocked) return;
     var toggle = document.getElementById("toggle");
     toggle.textContent = s.on ? "Hide the bar" : "Show the bar";

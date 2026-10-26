@@ -58,13 +58,16 @@ Neither works on the browser's own pages or on a PDF opened directly.
 - **Nothing is downloaded at run time by the extension.** The overlay ships inside the
   package. The bookmark loads the script from this project's own site over HTTPS, and
   that site serves a strict Content Security Policy and HSTS.
-- **Pages cannot turn it on or drive it.** A page can only switch its iframes' pen
-  forwarding on through the extension's own channel, every forwarded point is clamped
-  to the frame it came from, and a frame can never trigger a click outside itself. The
-  overlay lives in a shadow root, so the page's styles and scripts do not reach the bar.
+- **Pages cannot turn it on or drive it.** The extension ignores everything a page can
+  write (its address, its storage) and keeps the tab's settings itself, so only your
+  button or shortcut switches it on. Embedded frames forward the pen only while it is
+  on, every forwarded point is clamped to the frame it came from, and a frame can never
+  trigger a click outside itself. The overlay lives in a shadow root, so the page's
+  styles and scripts do not reach the bar.
 - **Minimal permissions.** The extension asks to run on all sites because you choose
   the site at presentation time; it builds nothing on a page until you press the button
-  or the shortcut.
+  or the shortcut. Its only other permissions inject the overlay into tabs opened before
+  the install and keep the tab's settings until the browser closes.
 - **Open source.** Every line is in this repository under the MIT License, with a test
   rig that drives real browsers and reads the result back from the canvas.
 

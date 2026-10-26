@@ -19,9 +19,18 @@
   function report(state) {
     chrome.runtime.sendMessage({ type: "webpen-state", state: state }).catch(function () {});
   }
-  Presenter.onChange(report);
-  // Frames that loaded before this top frame asked for the state and got nothing.
-  report(Presenter.state());
+  // The tab's settings come back from the extension, never from the page's own storage,
+  // and before the first report, which would otherwise save the defaults over them.
+  chrome.runtime.sendMessage({ type: "webpen-saved?" }).then(function (s) {
+    if (s && s.enabled && !Presenter.state().enabled) {
+      Presenter.set(s);
+      if (s.on) Presenter.show();
+    }
+  }, function () {}).then(function () {
+    Presenter.onChange(report);
+    // Frames that loaded before this top frame asked for the state and got nothing.
+    report(Presenter.state());
+  });
 
   function run(cmd, value) {
     if (cmd === "toggle") Presenter.toggle();

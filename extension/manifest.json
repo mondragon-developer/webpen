@@ -5,7 +5,7 @@
   "description": "Laser pointer, highlighter, pen and quick notes over any web page, for teaching on a screen share.",
   "author": "Jose Mondragon",
   "homepage_url": "https://webpen-presenter.netlify.app",
-  "permissions": ["scripting"],
+  "permissions": ["scripting", "storage"],
   "host_permissions": ["<all_urls>"],
   "icons": {
     "16": "icons/icon16.png",

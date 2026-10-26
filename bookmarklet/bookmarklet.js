@@ -6,8 +6,15 @@ document.getElementById("drag").href = code;
 document.getElementById("drag").addEventListener("click", function (e) { e.preventDefault(); });
 document.getElementById("copy").addEventListener("click", function () {
   var t = document.getElementById("code");
-  t.select();
-  var done = function () { document.getElementById("status").textContent = "Copied."; };
-  if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, function () { document.execCommand("copy"); done(); });
-  else { document.execCommand("copy"); done(); }
+  var status = document.getElementById("status");
+  var done = function () { status.textContent = "Copied."; };
+  // A textarea inside a closed <details> cannot be selected, so the fallback opens it first.
+  var fallback = function () {
+    t.closest("details").open = true;
+    t.select();
+    if (document.execCommand("copy")) done();
+    else status.textContent = "Could not copy. Select the code below and copy it.";
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, fallback);
+  else fallback();
 });

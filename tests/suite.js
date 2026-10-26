@@ -1,59 +1,7 @@
+const path = require("path");
 const L = require("./lib");
-const RED = (p) => p && p[0] > 200 && p[1] < 100 && p[3] > 0;
-const BLUE = (p) => p && p[2] > 200 && p[0] < 100 && p[3] > 0;
-const CLEAR = (p) => p && p[3] === 0;
-const out = [];
-const log = (name, ok, info) => { out.push({ name, ok, info }); console.log((ok ? "PASS " : "FAIL ") + name + (info ? "  " + JSON.stringify(info) : "")); };
-
-async function clickBar(page, label) {
-  await page.evaluate((label) => {
-    const q = (s) => document.querySelector(s) || (document.querySelector(".presenter-host") && document.querySelector(".presenter-host").shadowRoot.querySelector(s));
-    const b = Array.from(q(".presenter-bar").querySelectorAll("button")).find((x) => x.textContent.trim().startsWith(label));
-    b.click();
-  }, label);
-  await L.settle(page, 50);
-}
-
-async function drawTests(page, name, origin) {
-  const ox = origin ? origin.x : 300, oy = origin ? origin.y : 300;
-  const u0 = await L.ui(page);
-  log(name + ": bar shown inside viewport", u0.hasBar && !u0.barHidden && u0.bar.y + u0.bar.h <= u0.vh && u0.bar.x >= 0, { bar: u0.bar, vh: u0.vh, btns: u0.btns.map((b) => b.w + "x" + b.h + "/" + b.cs).join(" ") });
-  log(name + ": canvas covers viewport", u0.canvas && u0.canvas.x === 0 && u0.canvas.y === 0 && u0.canvas.w === u0.vw && u0.canvas.h === u0.vh, u0.canvas);
-  const r1 = await L.pen(page, [{ x: ox, y: oy }, { x: ox + 30, y: oy }, { x: ox + 60, y: oy }]);
-  await L.settle(page, 100);
-  log(name + ": laser pen stroke paints", RED(await L.pixel(page, ox + 60, oy)), { targets: r1.map((r) => r.target + (r.prevented ? "!" : "")).join(",") });
-  await clickBar(page, "Pen");
-  await L.pen(page, [{ x: ox, y: oy + 40 }, { x: ox + 60, y: oy + 40 }]);
-  await L.settle(page, 100);
-  log(name + ": pen red paints", RED(await L.pixel(page, ox + 30, oy + 40)));
-  await clickBar(page, "Red");
-  await L.pen(page, [{ x: ox, y: oy + 80 }, { x: ox + 60, y: oy + 80 }]);
-  await L.settle(page, 100);
-  log(name + ": pen blue paints", BLUE(await L.pixel(page, ox + 30, oy + 80)));
-  await L.pen(page, [{ x: ox, y: oy + 120 }, { x: ox + 60, y: oy + 120 }], { pointerType: "mouse", pointerId: 1 });
-  await L.settle(page, 100);
-  log(name + ": mouse does not draw", CLEAR(await L.pixel(page, ox + 30, oy + 120)));
-  await clickBar(page, "Erase");
-  await L.pen(page, [{ x: ox + 30, y: oy + 30 }, { x: ox + 30, y: oy + 50 }]);
-  await L.settle(page, 100);
-  log(name + ": erase removes red", CLEAR(await L.pixel(page, ox + 30, oy + 40)));
-  await clickBar(page, "Undo");
-  await L.settle(page, 100);
-  log(name + ": undo restores red", RED(await L.pixel(page, ox + 30, oy + 40)));
-  const before = await page.evaluate(() => scrollY);
-  await page.evaluate(() => window.scrollBy(0, 50));
-  await L.settle(page, 200);
-  const after = await page.evaluate(() => scrollY);
-  if (after !== before) {
-    log(name + ": stroke moves with the page on scroll", RED(await L.pixel(page, ox + 30, oy + 40 - (after - before))) && CLEAR(await L.pixel(page, ox + 30, oy + 40)), { before, after });
-    await page.evaluate((b) => window.scrollTo(0, b), before);
-    await L.settle(page, 200);
-  } else log(name + ": scroll test skipped (page not scrollable)", true);
-  await clickBar(page, "Clear");
-  await L.settle(page, 100);
-  log(name + ": clear empties", CLEAR(await L.pixel(page, ox + 30, oy + 40)) && CLEAR(await L.pixel(page, ox + 30, oy + 80)));
-  await clickBar(page, "Laser");
-}
+const T = require("./tests");
+const { RED, CLEAR, log, drawTests } = T;
 
 async function scan(page) {
   return page.evaluate(() => {
@@ -111,6 +59,9 @@ async function penInFrame(frame, x, y, id) {
   const t = await L.ui(page);
   log("transform: canvas and bar stay in viewport after scroll with transformed body", t.canvas.y === 0 && t.bar.y + t.bar.h <= t.vh, { canvas: t.canvas, bar: t.bar });
   await page.evaluate(() => window.scrollTo(0, 0));
+  await page.reload(); await L.settle(page, 600);
+  const t2 = await L.ui(page);
+  log("transform: the bar is back on after a reload, from the extension's saved state", t2.hasBar && t2.barHidden === false, { barHidden: t2.barHidden });
   await L.toggle(sw, page);
 
   await page.goto("http://127.0.0.1:8765/frames.html", { waitUntil: "domcontentloaded" }); await L.settle(page, 1500);
@@ -154,7 +105,50 @@ async function penInFrame(frame, x, y, id) {
       log("frames: pen inside cross-origin iframe draws laser on the top overlay", RED(await L.pixel(page, crossRect.x + 122, crossRect.y + 62)), { msgs: await page.evaluate(() => window.msgs.length), painted: await scan(page) });
     } catch (e) { log("frames: cross-origin iframe test errored", false, e.message.slice(0, 120)); }
   } else log("frames: cross-origin iframe did not load (network?)", false);
+  // Once the notes above have faded: a CSS-scaled iframe must map its points through the
+  // scale, or they land outside the frame's visible box.
+  await L.settle(page, 2600);
+  await page.evaluate(() => { const f = document.getElementById("same"); f.style.transformOrigin = "0 0"; f.style.transform = "scale(.5)"; });
+  await L.settle(page, 100);
+  await penInFrame(same, 100, 100, 12);
+  await L.settle(page, 150);
+  log("frames: pen inside a scaled iframe lands inside its scaled box", RED(await L.pixel(page, sameRect.x + 81, sameRect.y + 51)) && CLEAR(await L.pixel(page, sameRect.x + 162, sameRect.y + 102)), { painted: await scan(page) });
+  await page.evaluate(() => { document.getElementById("same").style.transform = ""; });
   await L.toggle(sw, page);
+
+  // A fresh tab, so the extension has no saved state for this origin. The page writes the
+  // overlay's storage keys and reopens itself with ?present=1: the extension's copy must
+  // stay unbuilt, and its frames must post nothing to the page.
+  const p2 = await ctx.newPage();
+  p2.on("pageerror", (e) => console.log("  pageerror:", e.message));
+  await p2.goto("http://127.0.0.1:8765/frames.html"); await L.settle(p2, 300);
+  await p2.evaluate(() => {
+    const on = JSON.stringify({ on: true, mode: "laser" });
+    for (const k of ["webpen-presenter", "presenter"]) { sessionStorage.setItem(k, on); sessionStorage.setItem(k + ":allowed", "1"); }
+  });
+  await p2.goto("http://127.0.0.1:8765/frames.html?present=1#present", { waitUntil: "domcontentloaded" }); await L.settle(p2, 1500);
+  await p2.evaluate(() => { window.msgs = []; window.addEventListener("message", (e) => { if (e.data && e.data.webpen) window.msgs.push(e.data.type); }); });
+  const same2 = p2.frames().find((f) => f.url().endsWith("inner.html"));
+  await same2.evaluate(() => {
+    for (const x of [50, 120, 130]) document.body.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, composed: true, pointerType: "mouse", pointerId: 1, clientX: x, clientY: x, buttons: 0, view: window }));
+  });
+  await L.settle(p2, 200);
+  const seeded = await p2.evaluate(() => ({ hosts: document.querySelectorAll(".presenter-host").length, msgs: window.msgs.length }));
+  log("activation: page storage and ?present=1 do not switch the extension on", seeded.hosts === 0 && seeded.msgs === 0, seeded);
+
+  // A site that embeds presenter.js itself, with the extension installed: one overlay, the
+  // page's own, and one laser tap is one click.
+  await p2.route(/\/presenter\.js$/, (route) => route.fulfill({ path: path.join(__dirname, "..", "src", "presenter.js"), contentType: "application/javascript" }));
+  await p2.goto("http://127.0.0.1:8765/embed.html?present=1"); await L.settle(p2, 800);
+  const yielded = await L.toggle(sw, p2); await L.settle(p2, 200);
+  await p2.evaluate(() => Presenter.show()); await L.settle(p2, 200);
+  const eb = await p2.evaluate(() => { const r = document.getElementById("embedbtn").getBoundingClientRect(); return { x: r.x + 20, y: r.y + r.height / 2 }; });
+  await L.pen(p2, [eb]); await L.settle(p2, 100);
+  const emb = await p2.evaluate(() => ({ hosts: document.querySelectorAll(".presenter-host").length, z: getComputedStyle(document.querySelector(".presenter-host")).zIndex, clicks: window.embedClicks || 0 }));
+  log("embed: the page's own copy keeps the page and the extension yields", emb.hosts === 1 && emb.z === "5900" && !!(yielded && yielded.yielded), { emb, yielded });
+  log("embed: one laser tap clicks once", emb.clicks === 1, emb);
+  await p2.close();
+  await page.bringToFront();
 
   const sites = [
     ["wikipedia", "https://en.wikipedia.org/wiki/Normal_distribution"],
@@ -176,6 +170,5 @@ async function penInFrame(frame, x, y, id) {
     } catch (e) { log(name + ": errored", false, e.message.slice(0, 160)); }
   }
   await ctx.close();
-  const fails = out.filter((o) => !o.ok).length;
-  console.log("\n" + (out.length - fails) + " pass, " + fails + " fail");
+  process.exit(T.summary() ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });
