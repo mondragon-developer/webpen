@@ -16,6 +16,13 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-26 - Embedded in StaTools
+
+- statools.mdragonsolutions.com sends `script-src 'self'`, so the bookmark could not
+  load the hosted file there. StaTools now serves its own copy; the bookmark finds
+  `window.Presenter` and only calls `show()`. Details and checks are in that repo's
+  local TRACKER; listed under Conventions as a downstream copy.
+
 ### 2026-10-26 - Hosted file and lessons site deployed
 
 - `netlify deploy --prod` here twice (the final-check fixes, then the rename); the live
@@ -366,5 +373,8 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 - Downstream copies of `src/presenter.js`, to receive the file unchanged after a
   change here, each with its own deploy: the Statistics Lessons site
   (`../Statistics-Activities-Netlify/public/shared/presenter.js`, loaded with
-  `data-z-index="5900"` and followed by its own `presenter-instructor.js`). This list is
-  the only place in the repo that names them.
+  `data-z-index="5900"` and followed by its own `presenter-instructor.js`) and StaTools
+  (`../statools/public/presenter.js`, plain script tag in `index.html`, deployed on
+  Vercel; its CSS keys off `data-webpen-presenter` on `<html>` to move
+  its corner buttons, so keep that attribute). This list is the only place in the repo
+  that names them.
