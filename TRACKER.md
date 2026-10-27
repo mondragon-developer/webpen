@@ -24,6 +24,12 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
   hashes the same as `src/presenter.js`; StaTools live with `?present=1` builds the bar
   with the grip, the variable is set and its CSS has the `clamp()` rule, no page
   errors. Store zip rebuilt (`scripts/pack.py`), not uploaded.
+- Session of 2026-10-27, in order: shapes (Box, Oval, Fill) and the bar variable, the
+  movable bar and Fold, the promo video in the README, then commit, push and deploy of
+  all three repos. Discussed, not built: a screenshot button (see Next Steps).
+- State at the end of the day: this repo, the hosted file, the lessons site and
+  StaTools carry the same `presenter.js` and are deployed. Nothing in this session has
+  been tried on a real iPad yet; that is the first item in Next Steps.
 
 ### 2026-10-27 - Promo video in the README, with a script to rebuild it
 
@@ -460,17 +466,26 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] On the iPad: Box and Oval with the Pencil.
-- [ ] Movable bar and Fold, on the iPad: drag the grip and the pill with the Pencil and with a finger, check
-      that a drop never triggers the tap, and that the bar stays docked through pinch
-      zoom and rotation. The popup has no Fold or dock control yet; add one if mouse
-      users ask.
+- [ ] NEXT SESSION, on the iPad, live sites: Box and Oval with the Pencil; drag the
+      grip and the folded pill with the Pencil and with a finger; check that a drop
+      never triggers the tap, and that the bar stays docked through pinch zoom and
+      rotation. On StaTools, check that the corner buttons ride above the bar.
+- [ ] The popup has no Fold or dock control yet; add one if mouse users ask.
+- [ ] Decide on the laser note that every pen lift keeps alive (found 2026-10-27, see
+      the shapes entry): a lift outside Laser mode should probably not restart the
+      hold, and Clear should remove the note.
 - [ ] Re-record the promo with the new bar (shapes, grip, Fold): a new iPhone screen
       recording into `video/iphone.mp4`, new `PHONE_CUTS`, then `python scripts/video.py`
       and `node tests/demo.js && python scripts/gif.py` first for the desktop part.
-- [ ] Idea, not decided: a screenshot button. The extension could use
-      `captureVisibleTab`; the bookmark and embedded copies cannot capture the page, and
-      the iPad's own screenshot already includes the overlay.
+- [ ] Idea, not decided: a screenshot button. Discussed on 2026-10-27; recommendation
+      is to wait. Only the extension can capture the page (`captureVisibleTab`, already
+      covered by its host permission): visible viewport only, the bar hidden during the
+      capture, saved as a PNG. The bookmark and embedded copies cannot capture page
+      pixels without a library, and iPad Safari has no screen-capture API, but the
+      iPad's own screenshot (Pencil swipe from a corner) already includes the marks. A
+      capture can hold student data from an LMS page, so the privacy page and listing
+      would need a line. If built: an extension popup button, after the store upload so
+      the submitted listing does not change mid-review.
 - [ ] On the iPad, open a lesson as instructor on statistics-lessons.netlify.app and
       write with the Pencil (the lessons site went live on 2026-10-26 without it).
 - [ ] Confirm the bookmark loads from the new host on the iPad.
