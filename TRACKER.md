@@ -16,6 +16,15 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-27 - Shapes and the movable bar deployed
+
+- Committed `4e53c14` here, `6188aec` in StaTools, `f39f110` in the lessons site, and
+  pushed all three. `netlify deploy --prod` for the hosted file (3 files) and the lessons
+  site; the StaTools push built on Vercel. The live `presenter.js` on all three hosts
+  hashes the same as `src/presenter.js`; StaTools live with `?present=1` builds the bar
+  with the grip, the variable is set and its CSS has the `clamp()` rule, no page
+  errors. Store zip rebuilt (`scripts/pack.py`), not uploaded.
+
 ### 2026-10-27 - Promo video in the README, with a script to rebuild it
 
 - The LinkedIn promo (26 s, 1080x1350, no sound) is now `docs/linkedin.mp4`, and
@@ -451,12 +460,8 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] Shapes: commit here, in StaTools (presenter.js plus index.css) and in the lessons
-      site; deploy the hosted file (`netlify deploy --prod`), the lessons site (manual
-      deploy) and StaTools (push). Rebuild the store zip. Check Box and Oval with the
-      Pencil on the iPad.
-- [ ] Movable bar and Fold: commit (here, StaTools, lessons) and deploy with shapes.
-      On the iPad, drag the grip and the pill with the Pencil and with a finger, check
+- [ ] On the iPad: Box and Oval with the Pencil.
+- [ ] Movable bar and Fold, on the iPad: drag the grip and the pill with the Pencil and with a finger, check
       that a drop never triggers the tap, and that the bar stays docked through pinch
       zoom and rotation. The popup has no Fold or dock control yet; add one if mouse
       users ask.
