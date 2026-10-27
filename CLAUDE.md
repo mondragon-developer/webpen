@@ -7,6 +7,8 @@
   self-contained and generic: no libraries, styles injected by the script, no hook for
   any particular site. A site that embeds it configures it through attributes on its
   script tag (`data-z-index`) and activates it with `?present=1` or `Presenter.show()`.
+  In return the overlay sets `data-webpen-presenter` and `--webpen-presenter-bar` on
+  `<html>`; StaTools' CSS depends on both, so keep their names and meaning.
   Sites that carry a copy are listed under Conventions in TRACKER.md; they receive the
   file unchanged.
 - Test in a real browser against a local static server (`python -m http.server`), with

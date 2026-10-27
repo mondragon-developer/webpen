@@ -28,7 +28,10 @@ that tool, while fingers keep scrolling and tapping the page as usual.
   and click with the same hand.
 - **Mark.** A translucent yellow highlighter that stays until you clear it.
 - **Pen.** A red or blue line that stays until you clear it. **Thick** doubles its width.
-- **Erase.** Rubs out part of a line or a mark.
+- **Box** and **Oval.** Drag corner to corner for a rectangle or an ellipse in the pen's
+  color and width; sides that come out nearly even snap to a square or a circle, since a
+  pen has no Shift key. **Fill** tints the inside and lets the page show through.
+- **Erase.** Rubs out part of a line or a mark, or a whole shape.
 - **Undo** and **Clear.** Take back the last stroke, or wipe everything.
 - **Finger.** Lets fingers and the mouse draw too, for a tablet without a pen or a
   laptop with a trackpad. While it is on, the page cannot be tapped.
@@ -90,6 +93,9 @@ the script. Any site can embed it:
 
 Open the page with `?present=1` or call `Presenter.show()` from your own instructor
 check. `data-z-index` is optional and lowers the overlay below the site's own modals.
+While it is built, `--webpen-presenter-bar` on `<html>` holds the distance from the
+bottom edge to the top of the bar (or the chip), so a site can keep its own bottom-left
+buttons clear with `bottom: calc(var(--webpen-presenter-bar) + 1rem)`.
 The carriers talk to it through `window.Presenter`: `show`, `hide`, `toggle`, `set`,
 `undo`, `clear`, `state`, `onChange`.
 

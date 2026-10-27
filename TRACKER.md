@@ -16,6 +16,45 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-27 - Shapes: Box and Oval, outlined or filled; bar height for host pages
+
+- `src/presenter.js`: two new modes, `rect` (Box) and `ellipse` (Oval), and a Fill
+  toggle, in the bar and the popup. A shape is dragged corner to corner in any
+  direction, takes the pen's color and Thick width, and becomes a square or circle when
+  its sides differ by less than 12% (`SNAP`), since a pen has no Shift. Stored in
+  `strokes` as `{mode, color, width, fill, pts: [corner, corner]}` in page coordinates,
+  so scroll anchoring, Undo and Clear needed nothing new. Fill paints the pen color at
+  22% alpha. Erase removes a shape whole when the eraser touches its outline, or its
+  inside when filled (an oval is tested as a 48-sided polygon). A drag under 4 px is a
+  slip and leaves no shape and no undo step. `state.fill` is persisted and accepted by
+  `Presenter.set`; `frameState` knows the new modes, so a frame in Box mode does not
+  take its pen for a laser tap.
+- The bar has 13 buttons now and wraps to three rows below about 390 px (top 124 px
+  above the bottom instead of 88), past StaTools' fixed 6.5rem. Decided: the overlay
+  publishes `--webpen-presenter-bar` on `<html>` (px from the bottom edge to the top of
+  the bar, or of the chip while hidden), written only when it changes; a site lifts its
+  own buttons with `calc(var(--webpen-presenter-bar) + 1rem)`. Documented in the header
+  comment, README and CLAUDE.md.
+- Tests: `shapeTests` in `tests/tests.js` on the fixed page (outline, empty inside,
+  square snap, an oval dragged backwards with its tint, erase inside filled vs outlined,
+  erase on an edge takes the box whole, Undo, scroll, a slip leaves no undo step,
+  Clear); suite checks that the variable matches the bar at 1200 and 360 px and the
+  chip when hidden; a box drawn inside the same-origin iframe paints on top and its tap
+  clicks nothing; popup Box plus Fill. `node suite.js` 81 pass, 1 fail (MDN unreachable);
+  `node popup.js` 13 pass, 1 fail (the shortcut check, as before). Port 8765 was taken
+  by another local app this session, so both ran from copies pointed at 8775.
+- Found while testing, not changed: every pen lift in any mode restarts the laser hold
+  (`released`), so a laser note stays on screen as long as the pen keeps lifting within
+  two seconds in Pen or Box mode, and Clear does not remove it.
+- Downstream: the lessons copy and StaTools' `public/presenter.js` replaced with the new
+  file. StaTools' `index.css` now uses the variable (fallback 88px) for the voice, tutor
+  and chat buttons, and the right-side query grew from 52rem to 64rem because the one-row
+  bar (about 707 px) met the tutor button between 832 and about 970 px. Checked against
+  `vite preview`: 90 layouts (home, Normal, Binomial; 360 to 1440 px; bar and chip) with
+  no overlap and no page errors; `npm run check` passes. Lessons checked locally on
+  lesson 1-2: z-index 5900, one host, a filled box and a snapped circle paint, no
+  errors. Nothing committed, pushed or deployed yet in any of the three repos.
+
 ### 2026-10-26 - Embedded in StaTools
 
 - statools.mdragonsolutions.com sends `script-src 'self'`, so the bookmark could not
@@ -360,22 +399,17 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] NEXT SESSION: shapes, outlined and filled (asked for on 2026-10-26, announced
-      as "coming next" in the LinkedIn post). Starting points:
-      - A Shape tool in the bar and the popup, with a kind (rectangle, ellipse) and a
-        Fill toggle; color and Thick come from the pen settings. Square and circle by
-        snapping when width and height are close, since a pen or finger has no Shift.
-      - Drawn by dragging corner to corner with the pen, or any input in Finger mode;
-        stored in page coordinates in `strokes` like a pen line, so scroll anchoring,
-        Undo and Clear work unchanged. A fill is translucent so the page shows through.
-      - Erase must hit shapes too: test against the outline, and the inside when filled;
-        an erased shape goes whole rather than being split like a line.
-      - Remote points from iframes go through the same path, already clamped.
-      - Tests: suite cases reading pixels on the outline, inside (empty vs filled),
-        after scroll, Undo and Erase; popup buttons. A wider bar may wrap to more rows,
-        so recheck the StaTools button offsets (6.5rem) on a phone viewport.
-      - Then sync, copy to the lessons site and StaTools, and update README, store
-        listing and the setup page tool list.
+- [ ] Shapes: commit here, in StaTools (presenter.js plus index.css) and in the lessons
+      site; deploy the hosted file (`netlify deploy --prod`), the lessons site (manual
+      deploy) and StaTools (push). Rebuild the store zip. Check Box and Oval with the
+      Pencil on the iPad.
+- [ ] Movable, collapsible bar (asked for on 2026-10-27): docked to any edge, horizontal
+      at the top or bottom and vertical at the left or right, chosen by the user, and
+      folded away at any moment without turning the overlay off. `--webpen-presenter-bar`
+      must keep meaning the space taken at the bottom edge.
+- [ ] Idea, not decided: a screenshot button. The extension could use
+      `captureVisibleTab`; the bookmark and embedded copies cannot capture the page, and
+      the iPad's own screenshot already includes the overlay.
 - [ ] On the iPad, open a lesson as instructor on statistics-lessons.netlify.app and
       write with the Pencil (the lessons site went live on 2026-10-26 without it).
 - [ ] Confirm the bookmark loads from the new host on the iPad.

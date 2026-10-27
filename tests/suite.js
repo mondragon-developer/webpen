@@ -32,6 +32,19 @@ async function penInFrame(frame, x, y, id) {
   await page.goto("http://127.0.0.1:8765/fixed.html"); await L.settle(page, 400);
   await L.toggle(sw, page); await L.settle(page);
   await drawTests(page, "fixed");
+  await T.shapeTests(page, "fixed");
+  // A site lifts its own bottom-left buttons with this variable, so it must follow the
+  // bar's real top when the bar wraps to more rows and when only the chip is left.
+  const barTop = () => page.evaluate(() => {
+    const root = document.querySelector(".presenter-host").shadowRoot;
+    const el = root.querySelector(".presenter-bar").hidden ? root.querySelector(".presenter-chip") : root.querySelector(".presenter-bar");
+    return { css: getComputedStyle(document.documentElement).getPropertyValue("--webpen-presenter-bar").trim(), real: Math.round(innerHeight - el.getBoundingClientRect().top) + "px" };
+  });
+  const wide = await barTop();
+  await page.setViewportSize({ width: 360, height: 740 }); await L.settle(page, 200);
+  const narrow = await barTop();
+  await page.setViewportSize({ width: 1200, height: 800 }); await L.settle(page, 200);
+  log("fixed: --webpen-presenter-bar matches the bar's top, wide and wrapped", wide.css === wide.real && narrow.css === narrow.real && parseFloat(narrow.css) > parseFloat(wide.css), { wide, narrow });
   const hostile = await L.ui(page);
   log("fixed: bar buttons keep own style under page button css", hostile.btns.every((b) => b.h <= 40 && b.w < 120 && b.cs === "999px"), hostile.btns.map((b) => b.w + "x" + b.h).join(" "));
   await L.pen(page, [{ x: 200, y: 30 }, { x: 260, y: 30 }]); await L.settle(page, 100);
@@ -46,6 +59,8 @@ async function penInFrame(frame, x, y, id) {
   await L.toggle(sw, page); await L.settle(page);
   const h = await L.ui(page);
   log("fixed: toggle hides bar and canvas", h.barHidden === true && h.canvasDisplay === "none");
+  const chipTop = await barTop();
+  log("fixed: --webpen-presenter-bar follows the chip while the bar is hidden", chipTop.css === chipTop.real, chipTop);
   await L.injectAndToggle(sw, page); await L.settle(page);
   const h2 = await L.ui(page);
   log("fixed: toggle after a second injection still shows the bar", h2.barHidden === false, { barHidden: h2.barHidden });
@@ -105,6 +120,33 @@ async function penInFrame(frame, x, y, id) {
       log("frames: pen inside cross-origin iframe draws laser on the top overlay", RED(await L.pixel(page, crossRect.x + 122, crossRect.y + 62)), { msgs: await page.evaluate(() => window.msgs.length), painted: await scan(page) });
     } catch (e) { log("frames: cross-origin iframe test errored", false, e.message.slice(0, 120)); }
   } else log("frames: cross-origin iframe did not load (network?)", false);
+  // In Box mode a frame must not treat its pen as a laser tap, or it would click itself.
+  await sw.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    await chrome.tabs.sendMessage(tab.id, { type: "webpen-cmd", cmd: "set", value: { mode: "rect" } }, { frameId: 0 });
+  });
+  await L.settle(page, 300);
+  await same.evaluate(() => { document.getElementById("innerbtn").textContent = "inner button"; });
+  const ib = await same.evaluate(() => { const r = document.getElementById("innerbtn").getBoundingClientRect(); return { x: r.x + 10, y: r.y + r.height / 2 }; });
+  await same.evaluate(({ x, y }) => {
+    const mk = (n, b, cx, cy) => new PointerEvent(n, { bubbles: true, cancelable: true, composed: true, pointerType: "pen", pointerId: 13, isPrimary: true, clientX: cx, clientY: cy, buttons: b, pressure: b ? 0.5 : 0, view: window });
+    const t = document.elementFromPoint(x, y);
+    t.dispatchEvent(mk("pointerdown", 1, x, y));
+    t.dispatchEvent(mk("pointermove", 1, x + 40, y + 30));
+    t.dispatchEvent(mk("pointerup", 0, x + 40, y + 30));
+    const u = document.elementFromPoint(x, y);
+    u.dispatchEvent(mk("pointerdown", 1, x, y));
+    u.dispatchEvent(mk("pointerup", 0, x, y));
+  }, ib);
+  await L.settle(page, 150);
+  const ibText = await same.evaluate(() => document.getElementById("innerbtn").textContent);
+  log("frames: a box drawn inside an iframe lands on the top overlay and a tap clicks nothing", RED(await L.pixel(page, sameRect.x + ib.x + 20, sameRect.y + ib.y + 30)) && ibText === "inner button", { ibText, painted: await scan(page) });
+  await sw.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    await chrome.tabs.sendMessage(tab.id, { type: "webpen-cmd", cmd: "clear" }, { frameId: 0 });
+    await chrome.tabs.sendMessage(tab.id, { type: "webpen-cmd", cmd: "set", value: { mode: "laser" } }, { frameId: 0 });
+  });
+  await L.settle(page, 300);
   // Once the notes above have faded: a CSS-scaled iframe must map its points through the
   // scale, or they land outside the frame's visible box.
   await L.settle(page, 2600);

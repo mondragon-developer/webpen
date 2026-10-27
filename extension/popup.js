@@ -38,6 +38,7 @@
     document.getElementById("swatch").style.background = COLORS[s.color];
     document.getElementById("colorLabel").textContent = s.color === "blue" ? "Blue" : "Red";
     document.getElementById("thick").setAttribute("aria-pressed", String(s.thick));
+    document.getElementById("fill").setAttribute("aria-pressed", String(!!s.fill));
     document.getElementById("finger").setAttribute("aria-pressed", String(s.allInput));
   }
 
@@ -52,6 +53,9 @@
   });
   document.getElementById("thick").addEventListener("click", function () {
     send("state").then(function (s) { if (s) send("set", { thick: !s.thick }); });
+  });
+  document.getElementById("fill").addEventListener("click", function () {
+    send("state").then(function (s) { if (s) send("set", { fill: !s.fill }); });
   });
   document.getElementById("finger").addEventListener("click", function () {
     send("state").then(function (s) { if (s) send("set", { allInput: !s.allInput }); });

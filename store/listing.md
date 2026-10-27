@@ -24,7 +24,9 @@ Tools:
   under the dot, so you can point and click with the same pen.
 - Mark: a translucent yellow highlighter that stays until you clear it.
 - Pen: a red or blue line that stays until you clear it; Thick doubles its width.
-- Erase: rub out part of a line.
+- Box and Oval: drag corner to corner for a rectangle or an ellipse; nearly even sides
+  snap to a square or a circle, and Fill tints the inside.
+- Erase: rub out part of a line, or a whole shape.
 - Undo and Clear.
 - Finger: lets a finger or mouse draw too, for tablets without a pen.
 

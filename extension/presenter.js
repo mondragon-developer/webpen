@@ -2,7 +2,7 @@
    Drawing overlay for teaching from a tablet over a screen share. Zoom shares pixels
    only, so a pencil hovering over a shared page is invisible to the room unless the page
    itself draws it. This script draws it: a small "Pointer" chip opens a tool bar with
-   Laser, Mark, Pen, Erase, Clear, Finger and Hide.
+   Laser, Mark, Pen, Box, Oval, Erase, Clear, Finger and Hide.
 
    Carriers: the browser extension and the bookmarklet call Presenter.show(). A site can
    also embed the file itself with <script src="presenter.js"></script>; it then shows
@@ -17,7 +17,10 @@
    host element appended to <html>, so the page's own CSS (global button rules, body
    transforms) cannot reach them. The host element's z-index is the only knob a site may
    need: a data-z-index attribute on the script tag lowers it below the site's own
-   overlays.
+   overlays. In return the overlay tells the page how tall it is: --webpen-presenter-bar
+   on <html> holds the px from the bottom edge to the top of the bar (or of the chip
+   while the bar is hidden), so a site can lift its own bottom-left buttons with
+   calc(var(--webpen-presenter-bar) + 1rem) however many rows the bar wraps to.
 
    Frames rule: when this file runs inside an iframe (a carrier such as the extension can
    load it in every frame) it builds no UI. It captures the pen the same way and forwards
@@ -33,7 +36,8 @@
 
    Input rule: a pen (Apple Pencil, pointerType "pen") is captured in every mode, so it
    never scrolls or selects; fingers keep working the page underneath. In Mark and Pen
-   modes the pen draws. In Laser mode a pen drag only moves the dot, and a quick tap
+   modes the pen draws, and in Box and Oval it drags a shape corner to corner. In Laser
+   mode a pen drag only moves the dot, and a quick tap
    (under TAP_MOVE px and TAP_TIME ms) is replayed as a click on whatever sits under it,
    so the instructor can point at a button and press it with the same pencil; sliders,
    scrolling and text selection stay with the finger. Pencil hover (iPadOS 16.4+) moves
@@ -64,6 +68,8 @@
   var embedded = !!document.currentScript;
   var STORE = "webpen-presenter";
   var OWNER = "data-webpen-presenter"; // on <html>, the one thing both JS worlds can see
+  var BAR_VAR = "--webpen-presenter-bar";
+  var DOCK_GAP = 12; // the bar's and the chip's bottom offset in STYLES
   var Z_INDEX = zIndexFromTag(); // the host element; above everything unless the embedding site says otherwise
   var FRAME_MSG = "webpen-presenter"; // postMessage tag for frame to parent pointer forwarding
   var LASER_LIFE = 1200; // ms a hover trail point stays visible; long enough to survive Zoom's low frame rate
@@ -73,6 +79,11 @@
   var MAX_TRACE = 12000; // pressed trace points; coalesced pen events add several per frame
   var MAX_REMOTE_POINTS = 64; // coalesced points one frame message may carry; more is a flood
   var ERASE_RADIUS = 14; // px around the eraser point; a stroke's half width is added on top
+  var SNAP = 0.12; // a box or oval whose sides differ by less than this share of the longer one becomes a square or circle
+  var MIN_SHAPE = 4; // px; a smaller drag is a slip, not a shape
+  var FILL_ALPHA = 0.22;
+  var ELLIPSE_SIDES = 48; // polygon the eraser tests an oval against
+  var MODES = /^(mark|pen|rect|ellipse|erase)$/;
 
   /* Everything sits in a shadow root, so page rules never match the canvas or the buttons;
      :host{all:initial} also stops inherited properties (font, color, text-transform) from
@@ -89,7 +100,7 @@
     "canvas.presenter-canvas-on{display:block}",
     "canvas.presenter-canvas-capture{pointer-events:auto;touch-action:none}",
     ".presenter-dock{position:fixed;left:0;top:0;transform-origin:0 0;z-index:1;pointer-events:none}",
-    ".presenter-chip,.presenter-bar{position:absolute;left:12px;bottom:12px;pointer-events:auto;",
+    ".presenter-chip,.presenter-bar{position:absolute;left:" + DOCK_GAP + "px;bottom:" + DOCK_GAP + "px;pointer-events:auto;",
     "font:13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
     ".presenter-chip{padding:6px 12px;border:0;border-radius:999px;background:#0f172a;color:#e2e8f0;",
     "cursor:pointer;opacity:.55;box-shadow:0 4px 14px rgba(0,0,0,.25)}",
@@ -111,7 +122,7 @@
   var TAP_TIME = 500; // ms
   var PEN_COLORS = { red: "#dc2626", blue: "#2563eb" };
   var MAX_UNDO = 40;
-  var state = { on: false, mode: "laser", allInput: false, color: "red", thick: false };
+  var state = { on: false, mode: "laser", allInput: false, color: "red", thick: false, fill: false };
   var allowed = false;
   var strokes = [];
   var undoStack = []; // stroke lists as they were before each stroke, erase or clear, for Undo
@@ -151,10 +162,11 @@
     var saved = JSON.parse(sessionStorage.getItem(STORE) || "null");
     if (saved && typeof saved === "object") {
       state.on = !!saved.on;
-      state.mode = /^(mark|pen|erase)$/.test(saved.mode) ? saved.mode : "laser";
+      state.mode = MODES.test(saved.mode) ? saved.mode : "laser";
       state.allInput = !!saved.allInput;
       state.color = saved.color === "blue" ? "blue" : "red";
       state.thick = !!saved.thick;
+      state.fill = !!saved.fill;
     }
     allowed = sessionStorage.getItem(STORE + ":allowed") === "1";
   } catch (e) {}
@@ -168,7 +180,7 @@
 
   function snapshot() {
     var s = { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick,
-              enabled: !!canvas };
+              fill: state.fill, enabled: !!canvas };
     if (!canvas && !inFrame && document.documentElement.hasAttribute(OWNER)) s.yielded = true;
     if (frameToken) s.token = frameToken;
     return s;
@@ -203,7 +215,7 @@
   }
 
   var modeButtons = {};
-  var fingerButton, colorButton, colorSwatch, colorLabel, thickButton;
+  var fingerButton, colorButton, colorSwatch, colorLabel, thickButton, fillButton;
 
   function build() {
     host = el("div", "presenter-host");
@@ -224,7 +236,9 @@
     bar.setAttribute("aria-label", "Presenter tools");
     modeButtons.laser = button("Laser", "Red dot with a fading trail", function () { setMode("laser"); });
     modeButtons.mark = button("Mark", "Translucent highlighter, stays until Clear", function () { setMode("mark"); });
-    modeButtons.pen = button("Pen", "Line that stays until Clear; color and thickness from the next two buttons", function () { setMode("pen"); });
+    modeButtons.pen = button("Pen", "Line that stays until Clear; color and thickness from the Red and Thick buttons", function () { setMode("pen"); });
+    modeButtons.rect = button("Box", "Drag corner to corner for a box; nearly even sides make a square", function () { setMode("rect"); });
+    modeButtons.ellipse = button("Oval", "Drag corner to corner for an oval; nearly even sides make a circle", function () { setMode("ellipse"); });
     colorButton = button("", "Pen color: tap to switch between red and blue", function () {
       setColor(state.color === "red" ? "blue" : "red");
     });
@@ -232,16 +246,20 @@
     colorLabel = el("span");
     colorButton.appendChild(colorSwatch);
     colorButton.appendChild(colorLabel);
-    thickButton = button("Thick", "Thicker pen and highlighter", function () { setThick(!state.thick); });
-    modeButtons.erase = button("Erase", "Rub out part of a mark or line", function () { setMode("erase"); });
+    thickButton = button("Thick", "Thicker pen, highlighter and shapes", function () { setThick(!state.thick); });
+    fillButton = button("Fill", "Tint the inside of the next boxes and ovals", function () { setFill(!state.fill); });
+    modeButtons.erase = button("Erase", "Rub out part of a mark or line, or a whole shape", function () { setMode("erase"); });
     fingerButton = button("Finger", "Draw with fingers too (the page cannot be tapped while on)", function () {
       setAllInput(!state.allInput);
     });
     bar.appendChild(modeButtons.laser);
     bar.appendChild(modeButtons.mark);
     bar.appendChild(modeButtons.pen);
+    bar.appendChild(modeButtons.rect);
+    bar.appendChild(modeButtons.ellipse);
     bar.appendChild(colorButton);
     bar.appendChild(thickButton);
+    bar.appendChild(fillButton);
     bar.appendChild(modeButtons.erase);
     bar.appendChild(button("Undo", "Take back the last stroke, erase or clear", undo));
     bar.appendChild(button("Clear", "Erase every mark and line", clear));
@@ -281,8 +299,20 @@
     colorLabel.textContent = state.color === "red" ? "Red" : "Blue";
     thickButton.classList.toggle("presenter-active", state.thick);
     thickButton.setAttribute("aria-pressed", String(state.thick));
+    fillButton.classList.toggle("presenter-active", state.fill);
+    fillButton.setAttribute("aria-pressed", String(state.fill));
+    reportHeight();
     dirty = true;
     schedule();
+  }
+
+  // Layout runs on every scroll, so the style is written only when the height changes.
+  var reportedHeight = -1;
+  function reportHeight() {
+    var h = DOCK_GAP + (state.on ? bar.offsetHeight : chip.offsetHeight);
+    if (h === reportedHeight) return;
+    reportedHeight = h;
+    document.documentElement.style.setProperty(BAR_VAR, h + "px");
   }
 
   function setOn(on) {
@@ -316,6 +346,62 @@
     state.thick = v;
     persist();
     render();
+  }
+
+  function setFill(v) {
+    state.fill = v;
+    persist();
+    render();
+  }
+
+  function isShape(mode) {
+    return mode === "rect" || mode === "ellipse";
+  }
+
+  // Corner to corner, so dragging up or left works too. A pen or finger has no Shift key.
+  function shapeEnd(a, p) {
+    var dx = p.x - a.x, dy = p.y - a.y;
+    var w = Math.abs(dx), h = Math.abs(dy);
+    var side = Math.max(w, h);
+    if (side && Math.abs(w - h) < side * SNAP) {
+      return { x: a.x + (dx < 0 ? -side : side), y: a.y + (dy < 0 ? -side : side) };
+    }
+    return { x: p.x, y: p.y };
+  }
+
+  function shapeBox(st) {
+    var a = st.pts[0], b = st.pts[1] || a;
+    return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
+  }
+
+  function shapeOutline(st) {
+    var r = shapeBox(st);
+    if (st.mode === "rect") {
+      return [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h },
+              { x: r.x, y: r.y + r.h }, { x: r.x, y: r.y }];
+    }
+    var out = [];
+    for (var i = 0; i <= ELLIPSE_SIDES; i++) {
+      var t = i / ELLIPSE_SIDES * Math.PI * 2;
+      out.push({ x: r.x + r.w / 2 + Math.cos(t) * r.w / 2, y: r.y + r.h / 2 + Math.sin(t) * r.h / 2 });
+    }
+    return out;
+  }
+
+  function insideShape(st, p) {
+    var r = shapeBox(st);
+    if (st.mode === "rect") return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+    if (!r.w || !r.h) return false;
+    var nx = (p.x - r.x - r.w / 2) / (r.w / 2), ny = (p.y - r.y - r.h / 2) / (r.h / 2);
+    return nx * nx + ny * ny <= 1;
+  }
+
+  // A shape goes whole: splitting a box into runs would leave stray corners behind.
+  function hitsShape(st, p, r) {
+    if (st.fill && insideShape(st, p)) return true;
+    var o = shapeOutline(st);
+    for (var i = 1; i < o.length; i++) if (segmentDistance(p, o[i - 1], o[i]) < r) return true;
+    return false;
   }
 
   function strokeWidth(mode) {
@@ -373,6 +459,7 @@
     var shift = "translate(" + vp.x + "px, " + vp.y + "px)";
     canvas.style.transform = shift;
     dock.style.transform = shift;
+    reportHeight();
     dirty = true;
     schedule();
   }
@@ -447,6 +534,11 @@
       var st = strokes[s];
       var pts = st.pts;
       var r = ERASE_RADIUS + (st.width || strokeWidth(st.mode)) / 2;
+      if (isShape(st.mode)) {
+        if (hitsShape(st, p, r)) changed = true;
+        else out.push(st);
+        continue;
+      }
       var hit = [];
       var any = false;
       for (var i = 0; i < pts.length; i++) {
@@ -473,6 +565,13 @@
     return changed;
   }
 
+  // The undo entry pushed at pointerdown goes too, or Undo would first take back nothing.
+  function dropSlip(st) {
+    var r = shapeBox(st);
+    if (Math.max(r.w, r.h) >= MIN_SHAPE || strokes[strokes.length - 1] !== st) return;
+    strokes = undoStack.pop() || strokes.slice(0, -1);
+  }
+
   function onDown(e) {
     if (!draws(e)) return;
     e.preventDefault();
@@ -494,10 +593,14 @@
     }
     current = {
       mode: state.mode,
-      color: state.mode === "pen" ? PEN_COLORS[state.color] : "#facc15",
+      color: state.mode === "mark" ? "#facc15" : PEN_COLORS[state.color],
       width: strokeWidth(state.mode),
       pts: [docPoint(e)]
     };
+    if (isShape(state.mode)) {
+      current.fill = state.fill;
+      current.pts.push(current.pts[0]);
+    }
     remember(strokes);
     strokes = strokes.concat([current]);
     dirty = true;
@@ -520,7 +623,8 @@
         if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > TAP_MOVE) tap = null;
         return;
       }
-      for (var i = 0; i < pts.length; i++) current.pts.push(docPoint(pts[i]));
+      if (isShape(current.mode)) current.pts[1] = shapeEnd(current.pts[0], docPoint(pts[pts.length - 1]));
+      else for (var i = 0; i < pts.length; i++) current.pts.push(docPoint(pts[i]));
       dirty = true;
       schedule();
       return;
@@ -534,6 +638,7 @@
   function onUp(e) {
     if (activePointer === null || e.pointerId !== activePointer) return;
     if (draws(e)) { e.preventDefault(); e.stopPropagation(); }
+    if (current && isShape(current.mode)) dropSlip(current);
     activePointer = null;
     current = null;
     eraser = null;
@@ -747,9 +852,26 @@
     ctx.restore();
   }
 
+  function drawShape(st) {
+    var r = shapeBox(st);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = ctx.fillStyle = st.color || PEN_COLORS.red;
+    ctx.lineWidth = st.width || strokeWidth(st.mode);
+    ctx.beginPath();
+    if (st.mode === "rect") ctx.rect(r.x, r.y, r.w, r.h);
+    else ctx.ellipse(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, r.h / 2, 0, 0, Math.PI * 2);
+    if (st.fill) {
+      ctx.globalAlpha = FILL_ALPHA;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.stroke();
+  }
+
   function drawStroke(st) {
     var pts = st.pts;
     if (!pts.length) return;
+    if (isShape(st.mode)) { drawShape(st); return; }
     if (st.mode === "mark") {
       ctx.globalCompositeOperation = "multiply";
       ctx.strokeStyle = "rgba(250, 204, 21, 0.55)";
@@ -830,7 +952,7 @@
     if (embedded && (allowed || urlFlag())) enable();
   }
 
-  /* set() takes any of mode, color, thick, allInput, for a carrier's own buttons (the
+  /* set() takes any of mode, color, thick, fill, allInput, for a carrier's own buttons (the
      extension popup) so mouse users need not reach the bar on the page. */
   window.Presenter = {
     enable: enable,
@@ -844,9 +966,10 @@
     state: snapshot,
     set: function (s) {
       if (!s || typeof s !== "object" || !enable()) return;
-      if (/^(laser|mark|pen|erase)$/.test(s.mode)) setMode(s.mode);
+      if (s.mode === "laser" || MODES.test(s.mode)) setMode(s.mode);
       if (s.color === "red" || s.color === "blue") setColor(s.color);
       if (typeof s.thick === "boolean") setThick(s.thick);
+      if (typeof s.fill === "boolean") setFill(s.fill);
       if (typeof s.allInput === "boolean") setAllInput(s.allInput);
     },
     inFrame: inFrame,
@@ -854,7 +977,7 @@
     frameState: function (s) {
       if (!inFrame || !s || typeof s !== "object") return;
       state.on = !!s.on;
-      state.mode = /^(mark|pen|erase)$/.test(s.mode) ? s.mode : "laser";
+      state.mode = MODES.test(s.mode) ? s.mode : "laser";
       state.allInput = !!s.allInput;
       if (typeof s.token === "string" && s.token) frameToken = s.token;
       if (!state.on) { frameActive = null; frameTap = null; }
