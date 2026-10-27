@@ -6,3 +6,4 @@ site/
 tests/node_modules/
 tests/profile-*/
 tests/demo-frames/
+video/

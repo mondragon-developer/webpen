@@ -5,7 +5,7 @@ pointer that remembers what you just wrote, a highlighter, a pen and an eraser, 
 on top of the site you are teaching from. Nothing to install on the students' side,
 nothing sent anywhere.
 
-![WebPenPresenter on a Wikipedia article: laser note, highlighter, pen, eraser, undo, scroll, clear](docs/demo.gif)
+<a href="docs/linkedin.mp4"><img src="docs/linkedin.gif" width="432" alt="WebPenPresenter on an iPhone with the Pencil and fingers, then on a computer on a Wikipedia article"></a>
 
 ## Who it is for
 
@@ -19,8 +19,10 @@ it works just as well on a computer with a mouse, in Chrome or Edge.
 
 ## The tools
 
-One small bar at the bottom left of the page. Tap a tool and the pen or pencil becomes
-that tool, while fingers keep scrolling and tapping the page as usual.
+One small bar, at the bottom left until you move it. Tap a tool and the pen or pencil
+becomes that tool, while fingers keep scrolling and tapping the page as usual.
+
+![WebPenPresenter on a Wikipedia article: laser note, highlighter, pen, eraser, undo, scroll, clear](docs/demo.gif)
 
 - **Laser.** A red dot follows the pen. Press and write, and the strokes stay together
   as a note ("12 + 7 = 19", stroke by stroke), then fade on their own two seconds after
@@ -35,6 +37,11 @@ that tool, while fingers keep scrolling and tapping the page as usual.
 - **Undo** and **Clear.** Take back the last stroke, or wipe everything.
 - **Finger.** Lets fingers and the mouse draw too, for a tablet without a pen or a
   laptop with a trackpad. While it is on, the page cannot be tapped.
+- **Move** (the dotted grip at the start of the bar). Drag it to any edge: the bar lies
+  flat along the top or bottom and stands upright along the left or right. A tap on the
+  grip moves it to the next edge.
+- **Fold.** Shrinks the bar to one small button that shows the current tool, which keeps
+  drawing. Tap it to unfold, or drag it out of the way.
 - **Hide.** Puts the bar away and leaves a small Pointer button to bring it back.
 
 Marks are anchored to the page, so they stay on the sentence you drew them on when you
@@ -94,8 +101,9 @@ the script. Any site can embed it:
 Open the page with `?present=1` or call `Presenter.show()` from your own instructor
 check. `data-z-index` is optional and lowers the overlay below the site's own modals.
 While it is built, `--webpen-presenter-bar` on `<html>` holds the distance from the
-bottom edge to the top of the bar (or the chip), so a site can keep its own bottom-left
-buttons clear with `bottom: calc(var(--webpen-presenter-bar) + 1rem)`.
+bottom edge to the top of the bar (or the folded button, or the chip) whenever it
+reaches into the bottom 80 px, and `0px` otherwise, so a site can keep its own corner
+buttons clear with `bottom: max(1.5rem, calc(var(--webpen-presenter-bar) + 1rem))`.
 The carriers talk to it through `window.Presenter`: `show`, `hide`, `toggle`, `set`,
 `undo`, `clear`, `state`, `onChange`.
 
@@ -111,7 +119,11 @@ netlify deploy --prod       # publish site/ (setup page + presenter.js)
 python scripts/pack.py      # zip extension/ for the store
 python scripts/icons.py     # redraw the extension icons
 node tests/demo.js && python scripts/gif.py   # re-record docs/demo.gif
+python scripts/video.py     # rebuild docs/linkedin.mp4 and .gif from video/iphone.mp4
 ```
+
+`video/` is not in git. It holds `iphone.mp4`, the phone screen recording the promo
+cuts from; the cut times and crops are at the top of `scripts/video.py`.
 
 Tests live in `tests/`: a Playwright rig that loads the extension into Chromium,
 dispatches synthetic pen and mouse pointer events on real sites and local trap pages,

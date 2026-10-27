@@ -18,9 +18,18 @@
    transforms) cannot reach them. The host element's z-index is the only knob a site may
    need: a data-z-index attribute on the script tag lowers it below the site's own
    overlays. In return the overlay tells the page how tall it is: --webpen-presenter-bar
-   on <html> holds the px from the bottom edge to the top of the bar (or of the chip
-   while the bar is hidden), so a site can lift its own bottom-left buttons with
+   on <html> holds the px from the bottom edge to the top of whatever it shows (the bar,
+   the folded pill or the chip) when that reaches into the bottom CORNER px, and 0px
+   otherwise, so a site can lift its own bottom buttons with
    calc(var(--webpen-presenter-bar) + 1rem) however many rows the bar wraps to.
+
+   Dock rule: the bar starts at the bottom left. Its grip drags it to any edge, where it
+   lies flat along the top or bottom and stands upright along the left or right; a tap on
+   the grip (or Enter) moves it to the next edge instead, for keyboards and for a pen that
+   would rather not drag. The spot along the edge is kept as a share of the free length,
+   so it survives a rotation or a window resize. Fold shrinks the bar to one pill showing
+   the current tool, which keeps drawing; the pill drags like the grip and a tap unfolds.
+   Both settings persist with the others.
 
    Frames rule: when this file runs inside an iframe (a carrier such as the extension can
    load it in every frame) it builds no UI. It captures the pen the same way and forwards
@@ -69,7 +78,9 @@
   var STORE = "webpen-presenter";
   var OWNER = "data-webpen-presenter"; // on <html>, the one thing both JS worlds can see
   var BAR_VAR = "--webpen-presenter-bar";
-  var DOCK_GAP = 12; // the bar's and the chip's bottom offset in STYLES
+  var DOCK_GAP = 12; // px between the bar, pill or chip and the edge it is docked to
+  var EDGES = ["bottom", "right", "top", "left"]; // the grip's tap walks them in this order
+  var CORNER = 80; // px at the bottom where sites keep corner buttons; reaching into it counts
   var Z_INDEX = zIndexFromTag(); // the host element; above everything unless the embedding site says otherwise
   var FRAME_MSG = "webpen-presenter"; // postMessage tag for frame to parent pointer forwarding
   var LASER_LIFE = 1200; // ms a hover trail point stays visible; long enough to survive Zoom's low frame rate
@@ -100,13 +111,24 @@
     "canvas.presenter-canvas-on{display:block}",
     "canvas.presenter-canvas-capture{pointer-events:auto;touch-action:none}",
     ".presenter-dock{position:fixed;left:0;top:0;transform-origin:0 0;z-index:1;pointer-events:none}",
-    ".presenter-chip,.presenter-bar{position:absolute;left:" + DOCK_GAP + "px;bottom:" + DOCK_GAP + "px;pointer-events:auto;",
+    ".presenter-chip,.presenter-bar,.presenter-pill{position:absolute;left:0;top:0;pointer-events:auto;",
     "font:13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
     ".presenter-chip{padding:6px 12px;border:0;border-radius:999px;background:#0f172a;color:#e2e8f0;",
     "cursor:pointer;opacity:.55;box-shadow:0 4px 14px rgba(0,0,0,.25)}",
     ".presenter-chip:hover,.presenter-chip:focus-visible{opacity:1}",
     ".presenter-bar{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:20px;",
-    "max-width:calc(100vw - 24px);background:rgba(15,23,42,.92);box-shadow:0 4px 14px rgba(0,0,0,.25)}",
+    "background:rgba(15,23,42,.92);box-shadow:0 4px 14px rgba(0,0,0,.25)}",
+    // Column-wrapping flexbox does not widen an absolutely placed box in every engine, so
+    // the upright bar is a grid whose row count the script sets from the free height.
+    ".presenter-bar.presenter-upright{display:grid;grid-auto-flow:column}",
+    // The dots sit on a child: the button's background shorthand would wipe them on hover.
+    ".presenter-grip{min-width:28px;cursor:grab;touch-action:none}",
+    ".presenter-dots{display:block;width:12px;height:18px;margin:auto;pointer-events:none;",
+    "background-image:radial-gradient(circle,#94a3b8 1.3px,transparent 1.7px);background-size:6px 6px}",
+    ".presenter-pill{display:flex;align-items:center;min-height:32px;padding:4px 14px;border:0;",
+    "border-radius:999px;background:rgba(15,23,42,.92);color:#e2e8f0;cursor:grab;touch-action:none;",
+    "box-shadow:0 4px 14px rgba(0,0,0,.25)}",
+    ".presenter-pill:hover,.presenter-pill:focus-visible{background:#334155}",
     ".presenter-btn{min-width:44px;min-height:32px;padding:4px 10px;border:0;border-radius:999px;",
     "background:transparent;color:#e2e8f0;font:inherit;cursor:pointer;touch-action:manipulation}",
     ".presenter-btn:hover,.presenter-btn:focus-visible{background:#334155}",
@@ -114,7 +136,7 @@
     ".presenter-active:hover,.presenter-active:focus-visible{background:#b91c1c}",
     ".presenter-swatch{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;",
     "vertical-align:-1px;box-shadow:0 0 0 1.5px #e2e8f0}",
-    ".presenter-chip[hidden],.presenter-bar[hidden]{display:none}",
+    ".presenter-chip[hidden],.presenter-bar[hidden],.presenter-pill[hidden]{display:none}",
     "@media print{.presenter-canvas,.presenter-dock{display:none!important}}"
   ].join("");
   var MAX_PIXELS = 16777216; // backing store cap; older iOS refuses larger canvases and zoom multiplies the size
@@ -122,7 +144,8 @@
   var TAP_TIME = 500; // ms
   var PEN_COLORS = { red: "#dc2626", blue: "#2563eb" };
   var MAX_UNDO = 40;
-  var state = { on: false, mode: "laser", allInput: false, color: "red", thick: false, fill: false };
+  var state = { on: false, mode: "laser", allInput: false, color: "red", thick: false, fill: false,
+                dock: { edge: "bottom", at: 0 }, folded: false };
   var allowed = false;
   var strokes = [];
   var undoStack = []; // stroke lists as they were before each stroke, erase or clear, for Undo
@@ -167,6 +190,8 @@
       state.color = saved.color === "blue" ? "blue" : "red";
       state.thick = !!saved.thick;
       state.fill = !!saved.fill;
+      state.dock = dockOf(saved.dock) || state.dock;
+      state.folded = !!saved.folded;
     }
     allowed = sessionStorage.getItem(STORE + ":allowed") === "1";
   } catch (e) {}
@@ -180,10 +205,17 @@
 
   function snapshot() {
     var s = { on: state.on, mode: state.mode, allInput: state.allInput, color: state.color, thick: state.thick,
-              fill: state.fill, enabled: !!canvas };
+              fill: state.fill, dock: { edge: state.dock.edge, at: state.dock.at }, folded: state.folded,
+              enabled: !!canvas };
     if (!canvas && !inFrame && document.documentElement.hasAttribute(OWNER)) s.yielded = true;
     if (frameToken) s.token = frameToken;
     return s;
+  }
+
+  function dockOf(d) {
+    if (!d || typeof d !== "object" || EDGES.indexOf(d.edge) < 0) return null;
+    var at = typeof d.at === "number" && isFinite(d.at) ? Math.min(Math.max(d.at, 0), 1) : 0;
+    return { edge: d.edge, at: at };
   }
 
   function urlFlag() {
@@ -216,6 +248,8 @@
 
   var modeButtons = {};
   var fingerButton, colorButton, colorSwatch, colorLabel, thickButton, fillButton;
+  var grip, pill, pillSwatch, pillLabel;
+  var MODE_NAMES = { laser: "Laser", mark: "Mark", pen: "Pen", rect: "Box", ellipse: "Oval", erase: "Erase" };
 
   function build() {
     host = el("div", "presenter-host");
@@ -228,12 +262,33 @@
     canvas.setAttribute("aria-hidden", "true");
     ctx = canvas.getContext("2d");
 
-    chip = button("Pointer", "Show the presenter tools", function () { setOn(true); });
+    chip = button("Pointer", "Show the presenter tools", function () { state.folded = false; setOn(true); });
     chip.className = "presenter-chip presenter-ui";
+
+    pill = button("", "Unfold the tools; drag to move", function () {
+      if (justDragged()) return;
+      setFolded(false);
+      grip.focus({ preventScroll: true });
+    });
+    pill.className = "presenter-pill presenter-ui";
+    pillSwatch = el("span", "presenter-swatch");
+    pillLabel = el("span");
+    pill.appendChild(pillSwatch);
+    pill.appendChild(pillLabel);
+    draggable(pill, pill);
 
     bar = el("div", "presenter-bar presenter-ui");
     bar.setAttribute("role", "toolbar");
     bar.setAttribute("aria-label", "Presenter tools");
+    grip = button("", "Move the bar: drag it to any edge, or tap for the next edge", function () {
+      if (justDragged()) return;
+      var i = EDGES.indexOf(state.dock.edge);
+      setDock({ edge: EDGES[(i + 1) % EDGES.length], at: state.dock.at });
+    });
+    grip.className = "presenter-btn presenter-grip";
+    grip.appendChild(el("span", "presenter-dots"));
+    grip.setAttribute("aria-label", "Move the bar to the next edge");
+    draggable(grip, bar);
     modeButtons.laser = button("Laser", "Red dot with a fading trail", function () { setMode("laser"); });
     modeButtons.mark = button("Mark", "Translucent highlighter, stays until Clear", function () { setMode("mark"); });
     modeButtons.pen = button("Pen", "Line that stays until Clear; color and thickness from the Red and Thick buttons", function () { setMode("pen"); });
@@ -252,6 +307,11 @@
     fingerButton = button("Finger", "Draw with fingers too (the page cannot be tapped while on)", function () {
       setAllInput(!state.allInput);
     });
+    bar.appendChild(grip);
+    bar.appendChild(button("Fold", "Fold the bar into one small button; the current tool keeps working", function () {
+      setFolded(true);
+      pill.focus({ preventScroll: true });
+    }));
     bar.appendChild(modeButtons.laser);
     bar.appendChild(modeButtons.mark);
     bar.appendChild(modeButtons.pen);
@@ -269,6 +329,7 @@
     dock = el("div", "presenter-dock");
     dock.appendChild(chip);
     dock.appendChild(bar);
+    dock.appendChild(pill);
     root.appendChild(canvas);
     root.appendChild(dock);
     document.documentElement.appendChild(host);
@@ -286,7 +347,8 @@
 
   function render() {
     chip.hidden = state.on;
-    bar.hidden = !state.on;
+    bar.hidden = !state.on || state.folded;
+    pill.hidden = !state.on || !state.folded;
     canvas.classList.toggle("presenter-canvas-on", state.on);
     canvas.classList.toggle("presenter-canvas-capture", state.on && state.allInput);
     Object.keys(modeButtons).forEach(function (m) {
@@ -301,18 +363,146 @@
     thickButton.setAttribute("aria-pressed", String(state.thick));
     fillButton.classList.toggle("presenter-active", state.fill);
     fillButton.setAttribute("aria-pressed", String(state.fill));
-    reportHeight();
+    var inked = state.mode === "mark" ? "#facc15" : state.mode === "laser" ? "#ef4444"
+      : state.mode === "erase" ? "" : PEN_COLORS[state.color];
+    pillSwatch.style.display = inked ? "" : "none";
+    pillSwatch.style.background = inked;
+    pillLabel.textContent = MODE_NAMES[state.mode] + (state.allInput ? " + Finger" : "");
+    place();
     dirty = true;
     schedule();
   }
 
-  // Layout runs on every scroll, so the style is written only when the height changes.
+  function shown() {
+    return !state.on ? chip : state.folded ? pill : bar;
+  }
+
+  /* Puts whatever is showing against its edge. Measured in the dock's own px, which is
+     the visual viewport, so a pinch zoom keeps it on screen. The upright bar gets as many
+     rows as fit and spills into a second column on a short screen (a phone on its side). */
+  function place() {
+    var d = state.dock;
+    var w = Math.max(1, Math.round(vp.w)), h = Math.max(1, Math.round(vp.h));
+    var upright = d.edge === "left" || d.edge === "right";
+    bar.classList.toggle("presenter-upright", upright);
+    if (upright) {
+      var first = bar.firstChild;
+      var row = (first ? first.offsetHeight : 32) + 4;
+      var rows = Math.max(1, Math.floor((h - 2 * DOCK_GAP - 8 + 4) / row));
+      bar.style.gridTemplateRows = "repeat(" + Math.min(rows, bar.children.length) + ", auto)";
+      bar.style.maxWidth = "none";
+    } else {
+      bar.style.gridTemplateRows = "";
+      bar.style.maxWidth = Math.max(0, w - 2 * DOCK_GAP) + "px";
+    }
+    var box = shown();
+    // An absolutely placed box shrinks to the room right of its left edge, so it is
+    // measured from the corner or a bar near the right edge would wrap and come out tall.
+    box.style.left = "0px";
+    box.style.top = "0px";
+    var bw = box.offsetWidth, bh = box.offsetHeight;
+    var x, y;
+    if (upright) {
+      x = d.edge === "left" ? DOCK_GAP : w - DOCK_GAP - bw;
+      y = DOCK_GAP + d.at * Math.max(0, h - bh - 2 * DOCK_GAP);
+    } else {
+      x = DOCK_GAP + d.at * Math.max(0, w - bw - 2 * DOCK_GAP);
+      y = d.edge === "top" ? DOCK_GAP : h - DOCK_GAP - bh;
+    }
+    x = Math.round(Math.max(0, x));
+    y = Math.round(Math.max(0, y));
+    var boxes = [chip, bar, pill];
+    for (var i = 0; i < boxes.length; i++) {
+      boxes[i].style.left = x + "px";
+      boxes[i].style.top = y + "px";
+    }
+    reportHeight(y + bh > h - CORNER ? h - y : 0);
+  }
+
+  // Layout runs on every scroll, so the style is written only when the value changes.
   var reportedHeight = -1;
-  function reportHeight() {
-    var h = DOCK_GAP + (state.on ? bar.offsetHeight : chip.offsetHeight);
-    if (h === reportedHeight) return;
-    reportedHeight = h;
-    document.documentElement.style.setProperty(BAR_VAR, h + "px");
+  function reportHeight(v) {
+    if (v === reportedHeight) return;
+    reportedHeight = v;
+    document.documentElement.style.setProperty(BAR_VAR, v + "px");
+  }
+
+  /* The handle follows any pointer, pen included: the input listeners skip the dock, so
+     nothing is drawn while it moves. Move and up are taken on window, not the handle,
+     because a synthetic or a fast pointer can leave the handle before capture applies. The
+     click that follows a drop must not count as a tap; on iPad Safari it can arrive a task
+     or two after pointerup, hence a time window rather than a flag cleared on the spot. */
+  var DRAG_CLICK = 400; // ms after a drop in which the handle ignores its click
+  var droppedAt = -Infinity;
+
+  function justDragged() {
+    return performance.now() - droppedAt < DRAG_CLICK;
+  }
+
+  function draggable(handle, box) {
+    var drag = null;
+    handle.addEventListener("pointerdown", function (e) {
+      if (e.button > 0 || drag) return;
+      var r = handle.getBoundingClientRect(), b = box.getBoundingClientRect();
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false,
+               dx: r.left - b.left + r.width / 2, dy: r.top - b.top + r.height / 2 };
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+      window.addEventListener("pointermove", move, true);
+      window.addEventListener("pointerup", end, true);
+      window.addEventListener("pointercancel", end, true);
+    });
+    function move(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      e.preventDefault();
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < TAP_MOVE) return;
+      drag.moved = true;
+      dropAt(e.clientX, e.clientY, drag, box);
+    }
+    function end(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var d = drag;
+      drag = null;
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", end, true);
+      window.removeEventListener("pointercancel", end, true);
+      if (!d.moved) return;
+      droppedAt = performance.now();
+      persist();
+    }
+  }
+
+  /* The nearest edge wins. The spot along it is chosen so the handle stays under the
+     pointer, measured again after the bar has turned, since turning moves the handle. */
+  function dropAt(cx, cy, drag, box) {
+    var r = dock.getBoundingClientRect();
+    var x = cx - r.left, y = cy - r.top;
+    var gaps = { left: x, right: r.width - x, top: y, bottom: r.height - y };
+    var edge = "bottom";
+    for (var k in gaps) if (gaps[k] < gaps[edge]) edge = k;
+    var turned = (edge === "left" || edge === "right") !== (state.dock.edge === "left" || state.dock.edge === "right");
+    state.dock = { edge: edge, at: state.dock.at };
+    place();
+    if (turned && box === bar) {
+      drag.dx = grip.offsetLeft + grip.offsetWidth / 2;
+      drag.dy = grip.offsetTop + grip.offsetHeight / 2;
+    }
+    var upright = edge === "left" || edge === "right";
+    var free = upright ? r.height - box.offsetHeight - 2 * DOCK_GAP : r.width - box.offsetWidth - 2 * DOCK_GAP;
+    var start = upright ? y - drag.dy : x - drag.dx;
+    state.dock.at = free > 0 ? Math.min(Math.max((start - DOCK_GAP) / free, 0), 1) : 0;
+    place();
+  }
+
+  function setDock(d) {
+    state.dock = dockOf(d) || state.dock;
+    persist();
+    render();
+  }
+
+  function setFolded(v) {
+    state.folded = v;
+    persist();
+    render();
   }
 
   function setOn(on) {
@@ -459,7 +649,7 @@
     var shift = "translate(" + vp.x + "px, " + vp.y + "px)";
     canvas.style.transform = shift;
     dock.style.transform = shift;
-    reportHeight();
+    place();
     dirty = true;
     schedule();
   }
@@ -952,7 +1142,7 @@
     if (embedded && (allowed || urlFlag())) enable();
   }
 
-  /* set() takes any of mode, color, thick, fill, allInput, for a carrier's own buttons (the
+  /* set() takes any of mode, color, thick, fill, allInput, dock ({edge, at}) and folded, for a carrier's own buttons (the
      extension popup) so mouse users need not reach the bar on the page. */
   window.Presenter = {
     enable: enable,
@@ -970,6 +1160,8 @@
       if (s.color === "red" || s.color === "blue") setColor(s.color);
       if (typeof s.thick === "boolean") setThick(s.thick);
       if (typeof s.fill === "boolean") setFill(s.fill);
+      if (dockOf(s.dock)) setDock(s.dock);
+      if (typeof s.folded === "boolean") setFolded(s.folded);
       if (typeof s.allInput === "boolean") setAllInput(s.allInput);
     },
     inFrame: inFrame,

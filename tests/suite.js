@@ -56,6 +56,7 @@ async function penInFrame(frame, x, y, id) {
   await L.pen(page, [bb]); await L.settle(page, 100);
   log("fixed: laser tap presses page button", (await page.evaluate(() => document.getElementById("hits").textContent)) === "1");
   log("fixed: page canvas keeps its css", await page.evaluate(() => getComputedStyle(document.querySelector("main canvas")).borderTopWidth === "3px"));
+  await T.dockTests(page, "fixed", true);
   await L.toggle(sw, page); await L.settle(page);
   const h = await L.ui(page);
   log("fixed: toggle hides bar and canvas", h.barHidden === true && h.canvasDisplay === "none");

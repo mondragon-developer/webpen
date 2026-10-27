@@ -118,10 +118,91 @@ async function shapeTests(page, name) {
   await clickBar(page, "Laser");
 }
 
+async function dockBox(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector(".presenter-host").shadowRoot;
+    const r = (el) => { const b = el.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), hidden: el.hidden }; };
+    return { bar: r(root.querySelector(".presenter-bar")), pill: r(root.querySelector(".presenter-pill")), grip: r(root.querySelector(".presenter-grip")),
+             pillText: root.querySelector(".presenter-pill").textContent, v: getComputedStyle(document.documentElement).getPropertyValue("--webpen-presenter-bar").trim(), vw: innerWidth, vh: innerHeight };
+  });
+}
+
+// Synthetic pen drag that starts on a handle inside the shadow root and moves over the page.
+async function penDrag(page, sel, to) {
+  return page.evaluate(({ sel, to }) => {
+    const h = document.querySelector(".presenter-host").shadowRoot.querySelector(sel);
+    const b = h.getBoundingClientRect();
+    const from = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    const mk = (n, p, buttons) => new PointerEvent(n, { bubbles: true, cancelable: true, composed: true, pointerType: "pen", pointerId: 21, isPrimary: true, clientX: p.x, clientY: p.y, buttons, button: n === "pointermove" ? -1 : 0, view: window });
+    h.dispatchEvent(mk("pointerdown", from, 1));
+    for (let i = 1; i <= 6; i++) {
+      const p = { x: from.x + (to.x - from.x) * i / 6, y: from.y + (to.y - from.y) * i / 6 };
+      (document.elementFromPoint(p.x, p.y) || document.body).dispatchEvent(mk("pointermove", p, 1));
+    }
+    (document.elementFromPoint(to.x, to.y) || document.body).dispatchEvent(mk("pointerup", to, 0));
+    return from;
+  }, { sel, to });
+}
+
+async function clickShadow(page, sel) {
+  await page.evaluate((sel) => document.querySelector(".presenter-host").shadowRoot.querySelector(sel).click(), sel);
+  await L.settle(page, 50);
+}
+
+async function dockTests(page, name, savedState) {
+  await clickBar(page, "Pen");
+  let d = await dockBox(page);
+  // A real mouse drag, with the pointer capture a browser applies to it.
+  await page.mouse.move(d.grip.x + d.grip.w / 2, d.grip.y + d.grip.h / 2);
+  await page.mouse.down();
+  await page.mouse.move(d.vw / 2, d.vh / 2, { steps: 5 });
+  await page.mouse.move(d.vw - 20, d.vh / 2, { steps: 5 });
+  await page.mouse.up();
+  await L.settle(page, 100);
+  d = await dockBox(page);
+  // Dropped halfway down, the tall bar reaches the bottom corner, so it reports its height.
+  const reaches = d.bar.y + d.bar.h > d.vh - 80;
+  log(name + ": dragging the grip to the right edge stands the bar upright there", d.bar.x + d.bar.w === d.vw - 12 && d.bar.h > d.bar.w && d.v === (reaches ? d.vh - d.bar.y : 0) + "px", { bar: d.bar, v: d.v });
+  const from = await penDrag(page, ".presenter-grip", { x: 400, y: d.vh - 10 });
+  await L.settle(page, 100);
+  d = await dockBox(page);
+  log(name + ": a pen drag on the grip lays the bar along the bottom and draws nothing", d.bar.y + d.bar.h === d.vh - 12 && d.bar.w > d.bar.h && CLEAR(await L.pixel(page, (from.x + 400) / 2, (from.y + d.vh - 10) / 2)) && d.v === (d.vh - d.bar.y) + "px", { bar: d.bar, v: d.v });
+  log(name + ": the grip stays under the pen after the bar turns", Math.abs(d.grip.x + d.grip.w / 2 - 400) <= 2, { grip: d.grip });
+  // The click that trails a drop is ignored for a moment, so a real tap comes later.
+  await L.settle(page, 450);
+  await clickShadow(page, ".presenter-grip");
+  d = await dockBox(page);
+  log(name + ": a tap on the grip moves the bar to the next edge (right)", d.bar.x + d.bar.w === d.vw - 12 && d.bar.h > d.bar.w, { bar: d.bar });
+  await clickShadow(page, ".presenter-grip");
+  d = await dockBox(page);
+  log(name + ": and the next (top)", d.bar.y === 12 && d.bar.w > d.bar.h, { bar: d.bar });
+  await clickBar(page, "Fold");
+  d = await dockBox(page);
+  log(name + ": Fold leaves one pill with the current tool at the same spot", d.bar.hidden && !d.pill.hidden && d.pill.y === 12 && /Pen/.test(d.pillText) && d.v === "0px", { pill: d.pill, text: d.pillText });
+  await L.pen(page, [{ x: 300, y: 400 }, { x: 360, y: 400 }]);
+  await L.settle(page, 100);
+  const inked = await L.pixel(page, 330, 400);
+  log(name + ": the pen keeps drawing while folded", !!inked && inked[3] > 0, { inked });
+  await penDrag(page, ".presenter-pill", { x: 30, y: d.vh - 10 });
+  await L.settle(page, 450);
+  d = await dockBox(page);
+  log(name + ": the pill drags to the bottom left and reports its height", d.pill.x === 12 && d.pill.y + d.pill.h === d.vh - 12 && d.v === (d.vh - d.pill.y) + "px", { pill: d.pill, v: d.v });
+  if (savedState) {
+    await page.reload(); await L.settle(page, 600);
+    d = await dockBox(page);
+    log(name + ": dock and fold are back after a reload", d.bar.hidden && !d.pill.hidden && d.pill.y + d.pill.h === d.vh - 12, { pill: d.pill });
+  }
+  await clickShadow(page, ".presenter-pill");
+  d = await dockBox(page);
+  log(name + ": a tap on the pill unfolds the bar where the pill was", !d.bar.hidden && d.pill.hidden && d.bar.x === 12 && d.bar.y + d.bar.h === d.vh - 12, { bar: d.bar });
+  await clickBar(page, "Clear");
+  await clickBar(page, "Laser");
+}
+
 function summary() {
   const fails = out.filter((o) => !o.ok).length;
   console.log("\n" + (out.length - fails) + " pass, " + fails + " fail");
   return fails;
 }
 
-module.exports = { RED, BLUE, CLEAR, TINT, log, clickBar, drawTests, shapeTests, summary };
+module.exports = { RED, BLUE, CLEAR, TINT, log, clickBar, drawTests, shapeTests, dockTests, summary };

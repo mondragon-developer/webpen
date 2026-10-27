@@ -29,6 +29,8 @@ Tools:
 - Erase: rub out part of a line, or a whole shape.
 - Undo and Clear.
 - Finger: lets a finger or mouse draw too, for tablets without a pen.
+- Drag the bar to any edge, upright on the sides, or fold it into one small button that
+  keeps the current tool.
 
 Marks are anchored to the page, so they stay put when you scroll. With a pen (Apple
 Pencil, Surface Pen, Wacom), the pen draws and fingers keep scrolling and tapping the

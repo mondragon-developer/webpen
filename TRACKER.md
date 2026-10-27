@@ -16,6 +16,58 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-27 - Promo video in the README, with a script to rebuild it
+
+- The LinkedIn promo (26 s, 1080x1350, no sound) is now `docs/linkedin.mp4`, and
+  `docs/linkedin.gif` (432 px wide, 12 fps, about 1.2 MB) plays at the top of the
+  README, linked to the mp4, since GitHub does not play a video file from the repo
+  inline. `docs/demo.gif` moved down to The tools.
+- `scripts/video.py` rebuilds both: the build that lived only in a session scratchpad,
+  now reading `video/iphone.mp4` (the phone recording, gitignored) and `docs/demo.gif`,
+  with the cut times and crops as constants. Rebuilt output checked frame by frame
+  against the posted one.
+- The video shows the bar before Box, Oval, Fill, the grip and Fold. Recording it again
+  needs a new iPhone screen recording.
+
+### 2026-10-27 - Movable bar: dock to any edge, upright on the sides; Fold to a tool pill
+
+- Decided with the user: drag a grip and snap to the nearest edge, keeping the spot
+  along it; Fold keeps the overlay on and the tool working; both remembered per tab
+  like the other settings.
+- `src/presenter.js`: a grip (dotted, first in the bar) and a Fold button. Dragging the
+  grip with any pointer, pen included, docks the bar to the nearest edge: flat (flex,
+  wrapping rows) along the top and bottom, upright along the left and right (a grid
+  whose row count the script sets from the free height, so a phone on its side gets a
+  second column; column-wrapping flexbox does not widen an absolute box everywhere). The
+  spot along the edge is `state.dock.at`, a share of the free length, so it survives a
+  rotation. A tap on the grip (or Enter) moves to the next edge, bottom, right, top,
+  left. Fold swaps the bar for a pill with the tool's color and name ("Pen", "Box +
+  Finger"); the pill drags the same way and a tap unfolds it; focus follows. The chip
+  sits at the same spot. Move and up are taken on window during a drag, the click that
+  trails a drop is ignored for 400 ms (iPad Safari can deliver it a task later), and the
+  box is measured from the corner because an absolute box near the right edge shrinks to
+  the room left of it and wraps. `state.dock` and `state.folded` persist and go through
+  `Presenter.set`.
+- `--webpen-presenter-bar` now means: px from the bottom edge to the top of whatever
+  shows (bar, pill or chip) when it reaches into the bottom 80 px (`CORNER`), else 0px.
+- Tests (`dockTests` in `tests/tests.js`, run on the fixed page): a real mouse drag to
+  the right edge stands the bar upright; a synthetic pen drag lays it along the bottom,
+  paints nothing, and the grip ends under the pen; grip taps go right then top; Fold
+  shows the pill with "Pen" at the same spot and the pen still draws; the pill drags to
+  the bottom left with the right variable; dock and fold are back after a reload; a tap
+  on the pill unfolds there. `node suite.js` 91 pass, 1 fail (MDN unreachable);
+  `node popup.js` 13 pass, 1 fail (the shortcut check). Screenshots checked at
+  1200x800, 390x844 and 844x390 on every edge and folded.
+- StaTools: corner buttons now all use the variable at every width, `clamp()` keeping
+  the usual offset when the bar is away and the button on screen otherwise (the 64rem
+  query is gone). 182 layouts against `vite preview` (home and Normal, 7 viewports, 6
+  docks, folded and not): no overlap and no page errors except on 844x390 with an
+  upright bar that fills that side, where the button sits under the bar; Fold reaches
+  it. `npm run check` passes. Lessons copy updated and checked on lesson 1-2: dock right
+  and fold come back after a reload, z-index 5900, no errors.
+- Docs: README (Move, Fold, the variable), store listing, setup page, privacy page
+  (where the bar sits is a kept setting). Not committed, not deployed.
+
 ### 2026-10-27 - Shapes: Box and Oval, outlined or filled; bar height for host pages
 
 - `src/presenter.js`: two new modes, `rect` (Box) and `ellipse` (Oval), and a Fill
@@ -403,10 +455,14 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
       site; deploy the hosted file (`netlify deploy --prod`), the lessons site (manual
       deploy) and StaTools (push). Rebuild the store zip. Check Box and Oval with the
       Pencil on the iPad.
-- [ ] Movable, collapsible bar (asked for on 2026-10-27): docked to any edge, horizontal
-      at the top or bottom and vertical at the left or right, chosen by the user, and
-      folded away at any moment without turning the overlay off. `--webpen-presenter-bar`
-      must keep meaning the space taken at the bottom edge.
+- [ ] Movable bar and Fold: commit (here, StaTools, lessons) and deploy with shapes.
+      On the iPad, drag the grip and the pill with the Pencil and with a finger, check
+      that a drop never triggers the tap, and that the bar stays docked through pinch
+      zoom and rotation. The popup has no Fold or dock control yet; add one if mouse
+      users ask.
+- [ ] Re-record the promo with the new bar (shapes, grip, Fold): a new iPhone screen
+      recording into `video/iphone.mp4`, new `PHONE_CUTS`, then `python scripts/video.py`
+      and `node tests/demo.js && python scripts/gif.py` first for the desktop part.
 - [ ] Idea, not decided: a screenshot button. The extension could use
       `captureVisibleTab`; the bookmark and embedded copies cannot capture the page, and
       the iPad's own screenshot already includes the overlay.
