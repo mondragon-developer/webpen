@@ -360,6 +360,22 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
+- [ ] NEXT SESSION: shapes, outlined and filled (asked for on 2026-10-26, announced
+      as "coming next" in the LinkedIn post). Starting points:
+      - A Shape tool in the bar and the popup, with a kind (rectangle, ellipse) and a
+        Fill toggle; color and Thick come from the pen settings. Square and circle by
+        snapping when width and height are close, since a pen or finger has no Shift.
+      - Drawn by dragging corner to corner with the pen, or any input in Finger mode;
+        stored in page coordinates in `strokes` like a pen line, so scroll anchoring,
+        Undo and Clear work unchanged. A fill is translucent so the page shows through.
+      - Erase must hit shapes too: test against the outline, and the inside when filled;
+        an erased shape goes whole rather than being split like a line.
+      - Remote points from iframes go through the same path, already clamped.
+      - Tests: suite cases reading pixels on the outline, inside (empty vs filled),
+        after scroll, Undo and Erase; popup buttons. A wider bar may wrap to more rows,
+        so recheck the StaTools button offsets (6.5rem) on a phone viewport.
+      - Then sync, copy to the lessons site and StaTools, and update README, store
+        listing and the setup page tool list.
 - [ ] On the iPad, open a lesson as instructor on statistics-lessons.netlify.app and
       write with the Pencil (the lessons site went live on 2026-10-26 without it).
 - [ ] Confirm the bookmark loads from the new host on the iPad.
