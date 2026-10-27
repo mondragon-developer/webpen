@@ -22,6 +22,14 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
   load the hosted file there. StaTools now serves its own copy; the bookmark finds
   `window.Presenter` and only calls `show()`. Details and checks are in that repo's
   local TRACKER; listed under Conventions as a downstream copy.
+- Pushed (`b1f605b` there); Vercel deployed it from `main` on its own about 40 s
+  later. Checked live on an iPhone 13 viewport: no overlay for a plain visitor,
+  `/calculators/normal?present=1` shows the chip, the bar stays open after navigating
+  to All Calculators, the voice button sits at 104 px above it, no CSP refusals or
+  page errors, and the live `/presenter.js` matches `src/` byte for byte.
+- State at the end of the day: this repo, the hosted file, the lessons site and
+  StaTools all carry the same `presenter.js` and are deployed. Open items are in
+  Next Steps (iPad checks, the store upload).
 
 ### 2026-10-26 - Hosted file and lessons site deployed
 
