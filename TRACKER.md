@@ -16,6 +16,18 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Completed
 
+### 2026-10-26 - Hosted file and lessons site deployed
+
+- `netlify deploy --prod` here twice (the final-check fixes, then the rename); the live
+  `presenter.js` matches `src/` byte for byte and the setup page title reads
+  WebPenPresenter.
+- Lessons site: copy updated, checked locally with Playwright on lesson 1-2 (no overlay
+  for a student, the chip within the poll once `Session.instructor` is set, z-index
+  5900, a pen stroke paints, the bar survives a reload, `?present=1` opens the chip, no
+  page errors), then its 6 pending commits pushed and `netlify deploy --prod` run there
+  (the site is not linked to Git, so a push alone does not deploy). Live
+  `/shared/presenter.js` matches `src/`.
+
 ### 2026-10-26 - Product name written as one word: WebPenPresenter
 
 - Display name changed from "WebPen Presenter" (and the short "WebPen") to
@@ -333,14 +345,12 @@ site (https://statistics-lessons.netlify.app), where the file is also deployed a
 
 ## Next Steps
 
-- [ ] Redeploy the hosted `presenter.js` (`netlify deploy --prod` from `site/`) and
-      copy `src/presenter.js` to the lessons site after the 2026-10-26 fixes.
+- [ ] On the iPad, open a lesson as instructor on statistics-lessons.netlify.app and
+      write with the Pencil (the lessons site went live on 2026-10-26 without it).
 - [ ] Confirm the bookmark loads from the new host on the iPad.
 - [ ] Load `extension/` unpacked in a real Chrome profile once: confirm the icon, the
       popup from the toolbar, and that Alt+Shift+P is bound at chrome://extensions/shortcuts.
       Then upload `webpen-presenter-0.2.0.zip` with the text in `store/listing.md`.
-- [ ] Deploy the lessons site with its updated copy of `presenter.js` and the new
-      `presenter-instructor.js` after a check on one lesson from the iPad.
 - [ ] Before publishing, search "WebPen" at tmsearch.uspto.gov and in the Chrome Web
       Store once by hand.
 - [ ] iPad checks listed under the 2026-10-20 entry above.
